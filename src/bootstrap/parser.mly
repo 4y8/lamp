@@ -1,5 +1,17 @@
-%token SEMI EQU LAM LPAR RPAR ARR
+%token SEMI EQU LAM LPAR RPAR ARR EOF
 %token <string> IDE
+
+%type <(string * Gram.expr) list> program
+
+%%
+
+program:
+  | decl* EOF { $1 }
+;
+
+decl:
+  | IDE EQU expr SEMI { ($1, $3) }
+;
 
 expr:
   | IDE { Var $1 }
@@ -9,3 +21,5 @@ expr:
 				 | hd :: tl -> Lam(hd, mklam e tl)
 			in
 			mklam $4 $2 }
+  | LPAR expr RPAR { $2 }
+;
