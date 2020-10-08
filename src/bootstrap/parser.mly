@@ -1,6 +1,11 @@
+%{
+    open Gram
+%}
+
 %token SEMI EQU LAM LPAR RPAR ARR EOF
 %token <string> IDE
 
+%start program
 %type <(string * Gram.expr) list> program
 
 %%
