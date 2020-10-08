@@ -3,6 +3,7 @@
 %}
 
 %token SEMI EQU LAM LPAR RPAR ARR EOF
+%token <string> OP 
 %token <string> IDE
 
 %start program
@@ -15,16 +16,15 @@ program:
 ;
 
 decl:
-  | IDE EQU expr SEMI { ($1, $3) }
+  | IDE IDE* EQU expr SEMI           { ($1, mklam $4 $2) }
+  | LPAR IDE RPAR IDE* EQU expr SEMI { ($2, mklam $6 $4) }
 ;
 
 expr:
-  | IDE { Var $1 }
-  | expr expr { App ($1, $2) }
-  | LAM IDE* ARR expr { let rec mklam e =
-			  function [] -> e
-				 | hd :: tl -> Lam(hd, mklam e tl)
-			in
-			mklam $4 $2 }
-  | LPAR expr RPAR { $2 }
+  | IDE               { Var $1 }
+  | expr expr         { App ($1, $2) }
+  | expr OP expr      { Opp($1, $2, $3) }
+  | LPAR OP RPAR      { Var $2 }
+  | LPAR expr RPAR    { $2 }
+  | LAM IDE* ARR expr { mklam $4 $2 }
 ;
