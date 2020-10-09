@@ -17,7 +17,7 @@ program:
 
 decl:
   | IDE IDE* EQU expr SEMI           { ($1, mklam $4 $2) }
-  | LPAR IDE RPAR IDE* EQU expr SEMI { ($2, mklam $6 $4) }
+  | LPAR OP RPAR IDE* EQU expr SEMI { ($2, mklam $6 $4) }
 ;
 
 expr:

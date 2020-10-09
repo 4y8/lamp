@@ -4,10 +4,11 @@
 }
 
 let var = ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
-let op = ['=' '|' '&' '*' '<' '>']* 
+let op = ['=' '|' '&' '*' '<' '>' '$']* 
 
 rule lex = parse
     "--" [^'\n']* '\n' { Lexing.new_line lexbuf; lex lexbuf }
+  | [' ' '\t']         { lex lexbuf }
   | "->"               { ARR }
   | '='                { EQU }
   | '\n'               { Lexing.new_line lexbuf; lex lexbuf }
@@ -17,3 +18,6 @@ rule lex = parse
   | var                { IDE (lexeme lexbuf) }
   | op                 { OP (lexeme lexbuf) }
   | eof                { EOF }
+
+{
+}

@@ -3,6 +3,9 @@ const x _ = x;
 fix x = x (fix x);
 flip f x y = f y x;
 
+(&) x f = f x;
+($) f x = f x;
+
 Pair x y f = f x y;
 Nothing x _ = x;
 Just x f g = g x;
