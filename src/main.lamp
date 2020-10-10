@@ -4,8 +4,8 @@ Pair x y f = f x y;
 Nothing x _ = x;
 Just x f g  = g x;
 
-Nil      = \f _ -> f;
-(:) h tl = \_ g -> g h tl;
+Nil       = \f _ -> f;
+(:) hd tl = \_ g -> g hd tl;
 
 -- Combinators
 id x = x;
@@ -16,4 +16,7 @@ flip f x y = f y x;
 (&) x f = f x;
 ($) f x = f x;
 
-(++) l l' = l l';
+-- Lists
+(++) l l' = l l' (\hd tl -> hd : (tl ++ l'));
+ifNil l t f = l t (\_ _ -> f);
+add r acc p = r (ifNil acc p ('`' : (acc ++ p)));

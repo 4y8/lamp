@@ -3,6 +3,7 @@ type expr
   | Var of string
   | App of expr * expr
   | Opp of expr * string * expr
+  | Chr of char
 [@@deriving show]
 
 let rec mklam e =

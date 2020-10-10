@@ -16,6 +16,7 @@ rule lex = parse
   | ')'                { RPAR }
   | ';'                { SEMI }
   | '\\'               { LAM }
+  | '\'' _ '\''        { CHAR (lexeme_char lexbuf 1) }
   | var                { IDE (lexeme lexbuf) }
   | op                 { OP (lexeme lexbuf) }
   | eof                { EOF }
