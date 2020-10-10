@@ -3,8 +3,8 @@
   open Lexing
 }
 
-let var = ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
-let op = ['=' '|' '&' '*' '<' '>' '$']* 
+let var = ['_' 'a'-'z' 'A'-'Z'] ['_' ''' 'a'-'z' 'A'-'Z' '0'-'9']*
+let op = [':' '=' '|' '&' '*' '<' '>' '$' '+' '-']* 
 
 rule lex = parse
     "--" [^'\n']* '\n' { Lexing.new_line lexbuf; lex lexbuf }
@@ -15,6 +15,7 @@ rule lex = parse
   | '('                { LPAR }
   | ')'                { RPAR }
   | ';'                { SEMI }
+  | '\\'               { LAM }
   | var                { IDE (lexeme lexbuf) }
   | op                 { OP (lexeme lexbuf) }
   | eof                { EOF }
