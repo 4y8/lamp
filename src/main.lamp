@@ -1,5 +1,5 @@
 -- Types
-Pair x y f = f x y;
+(,) x y = \f -> f x y;
 
 Nothing x _ = x;
 Just x f g  = g x;
@@ -15,8 +15,14 @@ flip f x y = f y x;
 
 (&) x f = f x;
 ($) f x = f x;
+(||) f g x y = f x (g x y);
 
 -- Lists
 (++) l l' = l l' (\hd tl -> hd : (tl ++ l'));
 ifNil l t f = l t (\_ _ -> f);
-add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
+head l = l undefined (\hd _ -> hd);
+tail l = l undefined (\_ tl -> tl);
+
+-- Parser
+app l r = ('`' : l) ++ r;
+term acc s = s undefined 
