@@ -27,6 +27,7 @@ tail l = l undefined (\_ tl -> tl);
 
 --(
 closes h = (hd == ')') || (hd == ';');
+pre h = (hd == '#') || (hd == '@');
 add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
 
 sub r acc t = uncurry (add r acc) (r Nil t);
@@ -34,4 +35,4 @@ sub r acc t = uncurry (add r acc) (r Nil t);
 term acc s =
     s
      undefined
-     (\hd tl -> (closes hd) (acc, tl) ((hd == '(') (sub term acc tl))) 
+     (\hd tl -> (closes hd) (acc, tl) ((hd == '(') (sub term acc tl) (pre (app acc) (add acc (h:Nil) t)))) 
