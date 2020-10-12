@@ -32,7 +32,7 @@ add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
 
 sub r acc t = uncurry (add r acc) (r Nil t);
 
+atom r acc h t = ((\x y -> add r acc h:x y) (pre h (((head t) : Nil), (tail t)) (Nil, t)));
+
 term acc s =
-    s
-     undefined
-     (\hd tl -> (closes hd) (acc, tl) ((hd == '(') (sub term acc tl) (pre (app acc) (add acc (h:Nil) t)))) 
+    s undefined (\h t -> (closes h) (acc, t) ((h == '(') (sub term acc t) (atom term acc h t)));
