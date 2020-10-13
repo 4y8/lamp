@@ -1,5 +1,7 @@
 -- Types
 (,) x y = \f -> f x y;
+curry f l r = f (l, r);
+uncurry f x = x f;
 
 Nothing x _ = x;
 Just x f g  = g x;
@@ -25,7 +27,6 @@ tail l = l undefined (\_ tl -> tl);
 
 -- Parser
 
---(
 closes h = (hd == ')') || (hd == ';');
 pre h = (hd == '#') || (hd == '@');
 add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
@@ -36,3 +37,14 @@ atom r acc h t = ((\x y -> add r acc h:x y) (pre h (((head t) : Nil), (tail t)) 
 
 term acc s =
     s undefined (\h t -> (closes h) (acc, t) ((h == '(') (sub term acc t) (atom term acc h t)));
+
+-- Parser Combinators
+pure x inp = Just (x, inp);
+bind f m = m Nothing (\x -> x f);
+(<*>) x y = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (y t)) (x inp);
+(<|>) x y = \inp -> (x inp) (y inp) Just;
+(<$>) f x = pure f <*> x;
+(*>) p q = (\_ x -> x) <$> p <*> q;
+(<*) p q = (\x _ -> x) <$> p <*> q;
+
+-- Bracket abstraction
