@@ -62,10 +62,10 @@ bind f m = m Nothing (\x -> x f);
 
 -- Ast
 -- data Expr = Com [Char] | Var Char | App Expr Expr | Abs Char Ast
-R s   = \a b c d -> a s;
-V v   = \a b c d -> b v;
-A x y = \a b c d -> c x y;
-L x y = \a b c d -> d x y;
+C c   = \a _ _ _ -> a c;
+V v   = \_ b _ _ -> b v;
+A l r = \_ _ c _ -> c l r;
+L v b = \_ _ _ d -> d v b;
 
 -- Parser
 -- Parses a character satisfying the predicate f.
@@ -78,7 +78,11 @@ sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 char c = sat ((==) c);
 -- Matches any character. 
 any = sat (\_ -> const);
-
-pre = (:) <$> (char '#' <|> char '@') <*> (flip (:) const <$> any);
+char_v = sat (\c -> flip ((c == ';') || (c == ')')));
+pre = C <$> ((:) <$> (char '#' <|> char '@') <*> (flip (:) const <$> any));
+parent r = char ')' *> (r <* char ')');
+lambda r = char '\\' *> (L <$> var) <*> (char '.' *> r);
+var = V <$> char_v;
+atom r = pre <|> var <|> (lambda r) <|> (parent r);
 
 -- Bracket abstraction
