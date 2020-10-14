@@ -25,8 +25,7 @@ ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\hd _ -> hd);
 tail l = l undefined (\_ tl -> tl);
 
--- Parser
-
+-- Parser for combinators
 closes h = (hd == ')') || (hd == ';');
 pre h = (hd == '#') || (hd == '@');
 add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
@@ -38,7 +37,7 @@ atom r acc h t = ((\x y -> add r acc h:x y) (pre h (((head t) : Nil), (tail t)) 
 term acc s =
     s undefined (\h t -> (closes h) (acc, t) ((h == '(') (sub term acc t) (atom term acc h t)));
 
--- Parser Combinators
+-- Parser combinator library
 pure x inp = Just (x, inp);
 bind f m = m Nothing (\x -> x f);
 
@@ -54,5 +53,25 @@ bind f m = m Nothing (\x -> x f);
 --   Nothing -> y inp
 --   Just n  -> Just n
 (<|>) x y = \inp -> (x inp) (y inp) Just;
+
+(<$>) f p = pure f <*> p;
+
+(<$) f p = const <$> pure <*> p;
+(<*) p q = const <$> p <*> q;
+(*>) p q = id <$ p <*> q;
+
+-- Ast
+-- data Expr = Com [Char] | Var Char | App Expr Expr | Abs Char Ast
+R s   = \a b c d -> a s;
+V v   = \a b c d -> b v;
+A x y = \a b c d -> c x y;
+L x y = \a b c d -> d x y;
+
+-- Parser
+-- Parses a character satisfying the predicate f.
+-- case inp of
+--   [] -> Nothing
+--   h : tl -> if f h then (pure h t) else Nothing 
+sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
 -- Bracket abstraction
