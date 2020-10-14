@@ -74,4 +74,9 @@ L x y = \a b c d -> d x y;
 --   h : tl -> if f h then (pure h t) else Nothing 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
+-- Parses the character c.
+char c = sat ((==) c);
+
+pre = (:) <$> (char '#' <|> char '@') <*> (flip (:) const <$> sat (const const));
+
 -- Bracket abstraction

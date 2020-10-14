@@ -17,16 +17,21 @@ program:
 ;
 
 decl:
-  | IDE IDE* EQU expr SEMI          { ($1, mklam $4 $2) }
-  | LPAR OP RPAR IDE* EQU expr SEMI { ($2, mklam $6 $4) }
+  | IDE IDE* EQU op_expr SEMI          { ($1, mklam $4 $2) }
+  | LPAR OP RPAR IDE* EQU op_expr SEMI { ($2, mklam $6 $4) }
+;
+
+op_expr:
+  | expr                    { $1 }
+  | op_expr OP op_expr      { Opp($1, $2, $3) }
 ;
 
 expr:
   | IDE               { Var $1 }
   | CHAR              { Chr $1 }
   | expr expr         { App ($1, $2) }
-  | expr OP expr      { Opp($1, $2, $3) }
   | LPAR OP RPAR      { Var $2 }
+  | LPAR op_expr RPAR    { $2 }
   | LPAR expr RPAR    { $2 }
   | LAM IDE* ARR expr { mklam $4 $2 }
 ;
