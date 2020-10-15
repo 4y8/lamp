@@ -26,12 +26,17 @@ op_expr:
   | op_expr OP op_expr      { Opp($1, $2, $3) }
 ;
 
+app:
+  | expr expr { App ($1, $2) }
+  | app expr { App ($1, $2) }
+;
+
 expr:
+  | app               { $1 }
   | IDE               { Var $1 }
   | CHAR              { Chr $1 }
-  | expr expr         { App ($1, $2) }
   | LPAR OP RPAR      { Var $2 }
-  | LPAR op_expr RPAR    { $2 }
   | LPAR expr RPAR    { $2 }
+  | LPAR op_expr RPAR { $2 }
   | LAM IDE* ARR expr { mklam $4 $2 }
 ;

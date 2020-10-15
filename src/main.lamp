@@ -1,13 +1,13 @@
 -- Types
-(,) x y = \f -> f x y;
+(,) x y     = \f -> f x y;
 curry f l r = f (l, r);
 uncurry f x = x f;
 
 Nothing x _ = x;
 Just x f g  = g x;
 
-Nil       = \f _ -> f;
-(:) hd tl = \_ g -> g hd tl;
+Nil     = \f _ -> f;
+(:) h t = \_ g -> g h t;
 
 -- Combinators
 id x = x;
@@ -20,10 +20,10 @@ flip f x y = f y x;
 (||) f g x y = f x (g x y);
 
 -- Lists
-(++) l l' = l l' (\hd tl -> hd : (tl ++ l'));
+(++) l l' = l l' (\h t -> h : (tl ++ l'));
 ifNil l t f = l t (\_ _ -> f);
-head l = l undefined (\hd _ -> hd);
-tail l = l undefined (\_ tl -> tl);
+head l = l undefined (\h _ -> h);
+tail l = l undefined (\_ t -> t);
 
 -- Parser for combinators
 closes h = (hd == ')') || (hd == ';');
@@ -78,11 +78,14 @@ sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 char c = sat ((==) c);
 -- Matches any character. 
 any = sat (\_ -> const);
+
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
-pre = C <$> ((:) <$> (char '#' <|> char '@') <*> (flip (:) const <$> any));
+pre = C <$> ((:) <$> (char '#' <|> char '@') <*> ((\c -> c : Nil) <$> any));
 parent r = char ')' *> (r <* char ')');
-lambda r = char '\\' *> (L <$> var) <*> (char '.' *> r);
+lambda r = char '\' *> (L <$> var) <*> (char '.' *> r);
 var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
+app r = (A <$> atom r) <*> (atom r);
 
+main = id ('a' 'b' 'c');
 -- Bracket abstraction
