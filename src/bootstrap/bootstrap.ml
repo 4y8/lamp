@@ -9,7 +9,7 @@ let rec to_deb e v n =
 
 let rec eval e c g =
   match e with
-    Var (s) -> List.assoc s g
+    Var s -> List.assoc s g
   | Deb n -> List.nth c n
   | App (Lam (_, b), r) -> eval b (r :: c) g
   | App (l, r) -> eval (App (eval l c g, r)) c g
@@ -21,7 +21,9 @@ let () =
   let rec clist l c =
     match l with
       [] -> raise Not_found
-    | ("main", e) :: _ -> eval (to_deb e "#" (-1)) [] c
-    | (f, s) :: tl -> clist tl ((f, to_deb s "#" (-1)) :: c)
+    | ("main", e) :: _ ->
+       eval (to_deb e "#" (-1)) [] c
+    | (f, s) :: tl ->
+       clist tl ((f, to_deb s "#" (-1)) :: c)
   in 
   print_endline (show_expr (clist p []))
