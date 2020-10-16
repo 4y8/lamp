@@ -39,6 +39,22 @@ let rec brack e c =
      brack (List.assoc v c) c
   | n -> n
 
+let rec eval =
+  function
+    App (Var "I", e) -> eval e
+  | App (App (Var "K", l), _) -> (eval l)
+  | App (App (App (Var "S", x), y), z) ->
+     let z = eval z in
+     eval ((x $ z) $ (y $ z))
+  | App (l, r) ->
+     let r' = eval r in
+     let l' = eval l in
+     let e = l' $ r' in
+     if (l = l') && (r = r')
+     then e
+     else eval e
+  | e -> e
+
 let () =
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
@@ -46,7 +62,7 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       eval c (eval c (to_deb e "#" (-1))) 
+       eval (brack (to_deb e "#" (-1)) c) 
     | (f, s) :: tl ->
        clist tl ((f, to_deb s "#" (-1)) :: c)
   in
