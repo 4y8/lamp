@@ -87,5 +87,5 @@ var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = id ('a' 'b' 'c');
+main = id (const 'a' 'b'); -- ('a' 'b' 'c');
 -- Bracket abstraction
