@@ -1,5 +1,7 @@
 open Gram
 
+let ($) f g x = f(g(x))
+
 let rec to_deb e v n =
   match e with
     Var s when s = v -> Deb n
@@ -12,7 +14,9 @@ let rec eval e c g =
     Var s -> List.assoc s g
   | Deb n -> List.nth c n
   | App (Lam (_, b), r) -> eval b (r :: c) g
-  | App (l, r) -> eval (App (eval l c g, r)) c g
+  | App (Chr _, _) -> e
+  | App (l, r) -> let c = r :: c in
+                  eval (App (eval l c g, r)) c g
   | e -> e
 
 let () =
@@ -22,8 +26,8 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       eval (to_deb e "#" (-1)) [] c
+       eval (eval (to_deb e "#" (-1)) [] c) [] c
     | (f, s) :: tl ->
        clist tl ((f, to_deb s "#" (-1)) :: c)
-  in 
+  in
   print_endline (show_expr (clist p []))
