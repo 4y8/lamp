@@ -71,12 +71,12 @@ L v b = \_ _ _ d -> d v b;
 -- Parses a character satisfying the predicate f.
 -- case inp of
 --   [] -> Nothing
---   h : tl -> if f h then (pure h t) else Nothing 
+--   h : tl -> if f h then (pure h t) else Nothing
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
 -- Matches the character c.
 char c = sat ((==) c);
--- Matches any character. 
+-- Matches any character.
 any = sat (\_ -> const);
 
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
@@ -87,5 +87,5 @@ var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = id (const 'a' 'b'); -- ('a' 'b' 'c');
+main = ((:) 'a' Nil undefined 'a'); -- undefined (\a _ -> a);-- any;
 -- Bracket abstraction
