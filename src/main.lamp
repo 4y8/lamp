@@ -1,3 +1,5 @@
+undefined = I;
+
 -- Types
 (,) x y     = \f -> f x y;
 curry f l r = f (l, r);
@@ -81,13 +83,15 @@ char c = sat ((==) c);
 -- Matches any character.
 any = sat (\_ -> const);
 
+--(
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
 pre = C <$> ((:) <$> (char '#' <|> char '@') <*> ((\c -> c : Nil) <$> any));
+--((
 parent r = char ')' *> (r <* char ')');
 lambda r = char '\' *> (L <$> var) <*> (char '.' *> r);
 var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = (sat (\_ -> const) ('a' : Nil)) 'a' (\a -> snd a);
+main = (((:) <$> any) <*> ((\x -> x : Nil) <$> any)) ('a' : ('a' : Nil)) 'a' (\x -> head (tail (fst x)));
 -- Bracket abstraction

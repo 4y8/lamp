@@ -24,11 +24,22 @@ let rec dec_deb =
   | Lam ("", b) -> Lam ("", dec_deb b)
   | e -> e
 
+let opt =
+  function
+    App (App (Var "S", App (Var "K", p)), App (Var "K", q)) ->
+     Var "K" $ (p $ q)
+  | App (App (Var "S", App (Var "K", p)), Var "I") -> p
+  | App (App (Var "S", App (Var "K", p)), q) ->
+     Var "B" $ p $ q
+  | App (App (Var "S", p), App (Var "K", q)) ->
+     Var "C" $ p $ q
+  | e -> e
+
 let rec abs e i =
   match e with
     Deb n when n = i -> Var "I"
-  | App (l, r ) when (not (in_lam e)) ->
-     (Var "S") $ (abs l i) $ (abs r i) 
+  | App (l, r) when (not (in_lam e)) ->
+     opt ((Var "S") $ (abs l i) $ (abs r i)) 
   | n -> (Var "K") $ (dec_deb n)
 
 let rec brack e =
@@ -41,16 +52,22 @@ let rec eval c =
   function
     App (Var "I", e) -> eval c e
   | App (App (Var "K", l), _) -> (eval c l)
+  | App (App (App (Var "B", f), g), x) ->
+     eval c (f $ (g $ x))
+  | App (App (App (Var "C", f), g), x) ->
+     eval c (f $ x $ g)
   | App (App (App (Var "S", x), y), z) ->
      let z = eval c z in
      eval c ((x $ z) $ (y $ z))
+  | App (App (App (App (Var "S'", r), f), g), x) ->
+     eval c (r $ (f $ x) $ (g $ x))
   | Var v when (not (List.mem v combinators)) ->
-     (brack (List.assoc v c))
+     brack (List.assoc v c)
   | App (l, r) ->
      let r' = eval c r in
      let l' = eval c l in
      let e = l' $ r' in
-     if (l = l') && (r = r')
+     if l = l' && r = r'
      then e
      else eval c e
   | e -> e
