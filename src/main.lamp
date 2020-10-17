@@ -2,9 +2,11 @@
 (,) x y     = \f -> f x y;
 curry f l r = f (l, r);
 uncurry f x = x f;
+fst x = x const;
+snd x = x (\_ s -> s);
 
-Nothing x _ = x;
-Just x _ g  = g x;
+Nothing = K;
+Just x  = \_ g -> g x;
 
 Nil     = K;
 (:) h t = \_ g -> g h t;
@@ -87,5 +89,5 @@ var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = (sat (\_ -> const) ('a' : Nil)) 'a' (\a -> (\f s -> f) a);
+main = (sat (\_ -> const) ('a' : Nil)) 'a' (\a -> snd a);
 -- Bracket abstraction
