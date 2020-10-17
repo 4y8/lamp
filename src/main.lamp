@@ -4,9 +4,9 @@ curry f l r = f (l, r);
 uncurry f x = x f;
 
 Nothing x _ = x;
-Just x f g  = g x;
+Just x _ g  = g x;
 
-Nil     = \f _ -> f;
+Nil     = K;
 (:) h t = \_ g -> g h t;
 
 -- Combinators
@@ -87,5 +87,5 @@ var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = ((:) 'a' Nil 'b' 'a'); -- undefined (\a _ -> a);-- any;
+main = (sat (\_ -> const) ('a' : Nil)) 'a' (\a -> (\f s -> f) a);
 -- Bracket abstraction

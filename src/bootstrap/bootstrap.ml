@@ -31,28 +31,28 @@ let rec abs e i =
      (Var "S") $ (abs l i) $ (abs r i) 
   | n -> (Var "K") $ (dec_deb n)
 
-let rec brack e c =
+let rec brack e =
   match e with
-    App (l, r) -> (brack l c) $ (brack r c)
-  | Lam (_, b) -> (abs (brack b c) 0)
-  | Var v when (not (List.mem v combinators)) ->
-     brack (List.assoc v c) c
+    App (l, r) -> (brack l) $ (brack r)
+  | Lam (_, b) -> (abs (brack b) 0)
   | n -> n
 
-let rec eval =
+let rec eval c =
   function
-    App (Var "I", e) -> eval e
-  | App (App (Var "K", l), _) -> (eval l)
+    App (Var "I", e) -> eval c e
+  | App (App (Var "K", l), _) -> (eval c l)
   | App (App (App (Var "S", x), y), z) ->
-     let z = eval z in
-     eval ((x $ z) $ (y $ z))
+     let z = eval c z in
+     eval c ((x $ z) $ (y $ z))
+  | Var v when (not (List.mem v combinators)) ->
+     (brack (List.assoc v c))
   | App (l, r) ->
-     let r' = eval r in
-     let l' = eval l in
+     let r' = eval c r in
+     let l' = eval c l in
      let e = l' $ r' in
      if (l = l') && (r = r')
      then e
-     else eval e
+     else eval c e
   | e -> e
 
 let () =
@@ -62,8 +62,8 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       eval (brack (to_deb e "#" (-1)) c) 
+       eval c (brack (to_deb e "#" (-1))) 
     | (f, s) :: tl ->
-       clist tl ((f, to_deb s "#" (-1)) :: c)
+       clist tl ((f, (to_deb s "#" (-1))) :: c)
   in
   print_endline (show_expr (clist p []))
