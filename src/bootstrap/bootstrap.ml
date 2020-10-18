@@ -2,7 +2,7 @@ open Gram
 
 let ($) l r = App (l, r)
 
-let combinators = ["K"; "I"; "B"; "C"; "S"]
+let combinators = ["K"; "I"; "B"; "C"; "S"; "S'"; "=="]
 
 let rec to_deb e v n =
   match e with
@@ -52,6 +52,10 @@ let rec eval c =
   function
     App (Var "I", e) -> eval c e
   | App (App (Var "K", l), _) -> (eval c l)
+  | App (App (Var "==", l), r) ->
+     if (eval c l) = (eval c r)
+     then Var "K"
+     else Var "K" $ Var "I"
   | App (App (App (Var "B", f), g), x) ->
      eval c (f $ (g $ x))
   | App (App (App (Var "C", f), g), x) ->

@@ -85,7 +85,7 @@ any = sat (\_ -> const);
 
 --(
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
-pre = C <$> ((:) <$> (char '#' <|> char '@') <*> ((\c -> c : Nil) <$> any));
+pre = ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
 --((
 parent r = char ')' *> (r <* char ')');
 lambda r = char '\' *> (L <$> var) <*> (char '.' *> r);
@@ -93,5 +93,5 @@ var = V <$> char_v;
 atom r = pre <|> var <|> (lambda r) <|> (parent r);
 app r = (A <$> atom r) <*> (atom r);
 
-main = (((:) <$> any) <*> ((\x -> x : Nil) <$> any)) ('a' : ('a' : Nil)) 'a' (\x -> head (tail (fst x)));
+main = pre ('#':('a':Nil)) 'a' (\x -> head (tail (fst x)));
 -- Bracket abstraction
