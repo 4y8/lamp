@@ -48,6 +48,11 @@ let rec brack e =
   | Lam (_, b) -> (abs (brack b) 0)
   | n -> n
 
+let common e =
+  let c = Var "C" in
+  let i = Var "I" in
+  c $ (c $ i $ i) $ e
+
 let rec eval c =
   function
     App (Var "I", e) -> eval c e
@@ -76,6 +81,20 @@ let rec eval c =
      else eval c e
   | e -> e
 
+let head =
+  common (Var "K")
+
+let tail =
+  common (Var "K" $ Var "I")
+
+let rec decode c =
+  function
+    Var "K" -> ""
+  | e ->
+     match eval c (head $ e) with
+       Chr c' -> (String.make 1 c') ^ (decode c (eval c (tail $ e)))
+     | _ -> raise Not_found
+
 let () =
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
@@ -83,8 +102,9 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       eval c (brack (to_deb e "#" (-1))) 
+       print_endline (show_expr (eval c (brack (to_deb e "#" (-1)))));
+      print_endline (decode c (eval c (brack (to_deb e "#" (-1))))) 
     | (f, s) :: tl ->
        clist tl ((f, (to_deb s "#" (-1))) :: c)
   in
-  print_endline (show_expr (clist p []))
+  clist p []

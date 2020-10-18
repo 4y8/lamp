@@ -66,10 +66,10 @@ bind f m = m Nothing (\x -> x f);
 
 -- Ast
 -- data Expr = Com [Char] | Var Char | App Expr Expr | Abs Char Ast
-C c   = \a _ _ _ -> a c;
-V v   = \_ b _ _ -> b v;
-A l r = \_ _ c _ -> c l r;
-L v b = \_ _ _ d -> d v b;
+Com c   = \a _ _ _ -> a c;
+Var v   = \_ b _ _ -> b v;
+App l r = \_ _ c _ -> c l r;
+Lam v b = \_ _ _ d -> d v b;
 
 -- Parser
 -- Parses a character satisfying the predicate f.
@@ -83,15 +83,17 @@ char c = sat ((==) c);
 -- Matches any character.
 any = sat (\_ -> const);
 
---(
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
-pre = ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
---((
-parent r = char ')' *> (r <* char ')');
-lambda r = char '\' *> (L <$> var) <*> (char '.' *> r);
-var = V <$> char_v;
-atom r = pre <|> var <|> (lambda r) <|> (parent r);
-app r = (A <$> atom r) <*> (atom r);
+pre = Com <$> ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
 
-main = pre ('#':('a':Nil)) 'a' (\x -> head (tail (fst x)));
+parent r = char ')' *> (r <* char ')');
+lambda r = char '\' *> (Lam <$> var) <*> (char '.' *> r);
+var = Var <$> char_v;
+atom r = pre <|> var <|> (lambda r) <|> (parent r);
+app r = (App <$> atom r) <*> (atom r);
+
+show =
+  \rec e -> e id (\x -> x : Nil) (\l r -> rec l ++ rec r) (\v b -> v ++ rec b);
+
+main = show id (Com ('#':('a':Nil)));
 -- Bracket abstraction
