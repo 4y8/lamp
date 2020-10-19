@@ -73,10 +73,9 @@ let rec eval c =
   | Var v when (not (List.mem v combinators)) ->
      brack (List.assoc v c)
   | App (l, r) ->
-     let r' = eval c r in
      let l' = eval c l in
-     let e = l' $ r' in
-     if l = l' && r = r'
+     let e = l' $ r in
+     if l = l'
      then e
      else eval c e
   | e -> e
@@ -102,7 +101,6 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       print_endline (show_expr (eval c (brack (to_deb e "#" (-1)))));
       print_endline (decode c (eval c (brack (to_deb e "#" (-1))))) 
     | (f, s) :: tl ->
        clist tl ((f, (to_deb s "#" (-1))) :: c)

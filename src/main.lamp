@@ -24,7 +24,7 @@ flip f x y = f y x;
 (||) f g x y = f x (g x y);
 
 -- Lists
-(++) l l' = l l' (\h t -> h : (tl ++ l'));
+(++) l l' = l l' (\h t -> h : (t ++ l'));
 ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
@@ -65,11 +65,13 @@ bind f m = m Nothing (\x -> x f);
 (*>) p q = id <$ p <*> q;
 
 -- Ast
--- data Expr = Com [Char] | Var Char | App Expr Expr | Abs Char Ast
+-- data Expr = Com [Char] | Var Char | App Expr Expr | Lam Char Expr
 Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
+
+(:@) = App;
 
 -- Parser
 -- Parses a character satisfying the predicate f.
@@ -86,14 +88,14 @@ any = sat (\_ -> const);
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
 pre = Com <$> ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
 
-parent r = char ')' *> (r <* char ')');
+parent r = char '(' *> r <* char ')';
 lambda r = char '\' *> (Lam <$> var) <*> (char '.' *> r);
 var = Var <$> char_v;
-atom r = pre <|> var <|> (lambda r) <|> (parent r);
-app r = (App <$> atom r) <*> (atom r);
+atom r = pre <|> var <|> lambda r <|> parent r;
+app r = App <$> atom r <*> atom r;
 
-show =
-  \rec e -> e id (\x -> x : Nil) (\l r -> rec l ++ rec r) (\v b -> v ++ rec b);
+show e =
+  e id (\x -> x : Nil) (\l r -> (show l) ++ (' ' : show r)) (\v b -> '\': (v : ('.' : show b)));
 
-main = show id (Com ('#':('a':Nil)));
+main = show (Lam 'a' (Com ('#' : ('a' : Nil))) :@ Com ('a':Nil));
 -- Bracket abstraction
