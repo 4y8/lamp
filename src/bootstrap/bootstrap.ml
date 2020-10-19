@@ -92,7 +92,7 @@ let rec decode c =
   | e ->
      match eval c (head $ e) with
        Chr c' -> (String.make 1 c') ^ (decode c (eval c (tail $ e)))
-     | _ -> raise Not_found
+     | _ -> failwith "Invalid output string"
 
 let () =
   let ic = open_in "../main.lamp" in
@@ -101,6 +101,7 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
+      print_endline (show_expr (eval c (brack (to_deb e "#" (-1))))); 
       print_endline (decode c (eval c (brack (to_deb e "#" (-1))))) 
     | (f, s) :: tl ->
        clist tl ((f, (to_deb s "#" (-1))) :: c)

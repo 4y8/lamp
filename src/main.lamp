@@ -9,6 +9,9 @@ snd x = x (\_ s -> s);
 
 Nothing = K;
 Just x  = \_ g -> g x;
+get e = e undefined id;
+
+(.) f g x = f (g x);
 
 Nil     = K;
 (:) h t = \_ g -> g h t;
@@ -51,18 +54,18 @@ bind f m = m Nothing (\x -> x f);
 --     case y l of
 --       Nothing -> Nothing
 --       Just (b, l') -> Just (a b, l')
-(<*>) x y = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (y t)) (x inp);
+(<*>) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q t)) (p inp);
 
 -- case x inp of
 --   Nothing -> y inp
 --   Just n  -> Just n
-(<|>) x y = \inp -> (x inp) (y inp) Just;
+(<|>) p q = \inp -> (p inp) (q inp) Just;
 
 (<$>) f p = pure f <*> p;
 
-(<$) f p = const <$> pure <*> p;
-(<*) p q = const <$> p <*> q;
-(*>) p q = id <$ p <*> q;
+(<$) f p = const <$> pure f <*> p;
+(<*) p q = const <$> p      <*> q;
+(*>) p q = id    <$  p      <*> q;
 
 -- Ast
 -- data Expr = Com [Char] | Var Char | App Expr Expr | Lam Char Expr
@@ -89,13 +92,14 @@ char_v = sat (\c -> flip ((c == ';') || (c == ')')));
 pre = Com <$> ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
 
 parent r = char '(' *> r <* char ')';
-lambda r = char '\' *> (Lam <$> var) <*> (char '.' *> r);
+lambda r = Lam <$> (char '\' *> char_v) <*> (char '.' *> r);
 var = Var <$> char_v;
-atom r = pre <|> var <|> lambda r <|> parent r;
-app r = App <$> atom r <*> atom r;
+atom = pre <|> var <|> lambda atom <|> parent atom;
+app r = App <$> atom <*> atom;
 
 show e =
   e id (\x -> x : Nil) (\l r -> (show l) ++ (' ' : show r)) (\v b -> '\': (v : ('.' : show b)));
 
-main = show (Lam 'a' (Com ('#' : ('a' : Nil))) :@ Com ('a':Nil));
+--main = show (Lam 'a' (Com ('#' : ('a' : Nil))) :@ Com ('a':Nil));
+main = (show . (fst . get)) (lambda var ('\' : ('a' : ('.' : ('a' : Nil)))));
 -- Bracket abstraction

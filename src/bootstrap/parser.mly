@@ -7,6 +7,8 @@
 %token <string> OP 
 %token <string> IDE
 
+%left OP
+
 %start program
 %type <(string * Gram.expr) list> program
 
