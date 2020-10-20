@@ -67,6 +67,11 @@ bind f m = m Nothing (\x -> x f);
 (<*) p q = const <$> p      <*> q;
 (*>) p q = id    <$  p      <*> q;
 
+opt def x = x <|> pure def;
+many p = opt Nil ((:) <$> p <*> many p);
+appall x l = l x (\h t -> appall (h x) t);
+chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
+
 -- Ast
 -- data Expr = Com [Char] | Var Char | App Expr Expr | Lam Char Expr
 Com c   = \a _ _ _ -> a c;
@@ -93,12 +98,13 @@ parent r = char '(' *> r <* char ')';
 lambda r = Lam <$> (char '\' *> char_v) <*> (char '.' *> r);
 var = Var <$> char_v;
 app r = App <$> r <*> r;
-atom = pre <|> lambda atom <|> parent atom <|> var <|> app atom;
+atom r = parent r <|> pre <|> lambda r <|> var;
+app = chainl1 (pure App) (atom app);
 
 -- case e of
 --   Com c -> c
 --   Var v -> [v]
---   App l r -> (show l) + (show r)
+--   App l r -> (show l) ++ (show r)
 --   Lam v b -> '\' : v : '.' ++ (show b)
 show e =
   e
@@ -107,5 +113,5 @@ show e =
     (\l r -> (show l) ++ (' ' : show r))
     (\v b -> '\': (v : ('.' : show b)));
 
-main = (show . fst . get . atom);
+main = (show . fst . get . app);
 -- Bracket abstraction

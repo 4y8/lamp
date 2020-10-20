@@ -111,9 +111,7 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       print_endline (show_expr (eval c (brack (to_deb e "#" (-1)) $ (encode c (explode s))))); 
        print_endline (decode c (eval c (brack (to_deb e "#" (-1)) $ (encode c (explode s)))));
-       print_endline (decode c (encode c (explode s)));
     | (f, s) :: tl ->
        clist tl ((f, (to_deb s "#" (-1))) :: c)
   in
