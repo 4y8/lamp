@@ -1,4 +1,5 @@
 open Gram
+open Combo
 
 let ($) l r = App (l, r)
 
@@ -48,11 +49,6 @@ let rec brack e =
   | Lam (_, b) -> (abs (brack b) 0)
   | n -> n
 
-let common e =
-  let c = Var "C" in
-  let i = Var "I" in
-  c $ (c $ i $ i) $ e
-
 let rec eval c =
   function
     App (Var "I", e) -> eval c e
@@ -80,13 +76,26 @@ let rec eval c =
      else eval c e
   | e -> e
 
-let head =
-  common (Var "K")
-
-let tail =
-  common (Var "K" $ Var "I")
+let rec encode c =
+  let cons =
+    let b = Var "B" in
+    let c = Var "C" in
+    let k = Var "K" in
+    let i = Var "I" in
+    (b $ (b $ k))$ ((b $ c) $ (c $ i))
+  in
+  function
+  [] -> Var "K"
+| hd :: tl -> eval c (cons $ Chr hd $ (encode c tl))
 
 let rec decode c =
+  let common e =
+    let c = Var "C" in
+    let i = Var "I" in
+    c $ (c $ i $ i) $ e
+  in
+  let head = common (Var "K") in
+  let tail = common (Var "K" $ Var "I") in
   function
     Var "K" -> ""
   | e ->
@@ -97,12 +106,14 @@ let rec decode c =
 let () =
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
+  let s  = read_line () in
   let rec clist l c =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-      print_endline (show_expr (eval c (brack (to_deb e "#" (-1))))); 
-      print_endline (decode c (eval c (brack (to_deb e "#" (-1))))) 
+       print_endline (show_expr (eval c (brack (to_deb e "#" (-1)) $ (encode c (explode s))))); 
+       print_endline (decode c (eval c (brack (to_deb e "#" (-1)) $ (encode c (explode s)))));
+       print_endline (decode c (encode c (explode s)));
     | (f, s) :: tl ->
        clist tl ((f, (to_deb s "#" (-1))) :: c)
   in

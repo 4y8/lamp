@@ -74,8 +74,6 @@ Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
 
-(:@) = App;
-
 -- Parser
 -- Parses a character satisfying the predicate f.
 -- case inp of
@@ -89,17 +87,25 @@ char c = sat ((==) c);
 any = sat (\_ -> const);
 
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
-pre = Com <$> ((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any);
+pre = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
 
 parent r = char '(' *> r <* char ')';
 lambda r = Lam <$> (char '\' *> char_v) <*> (char '.' *> r);
 var = Var <$> char_v;
-atom = pre <|> var <|> lambda atom <|> parent atom;
-app r = App <$> atom <*> atom;
+app r = App <$> r <*> r;
+atom = pre <|> lambda atom <|> parent atom <|> var <|> app atom;
 
+-- case e of
+--   Com c -> c
+--   Var v -> [v]
+--   App l r -> (show l) + (show r)
+--   Lam v b -> '\' : v : '.' ++ (show b)
 show e =
-  e id (\x -> x : Nil) (\l r -> (show l) ++ (' ' : show r)) (\v b -> '\': (v : ('.' : show b)));
+  e
+    id
+    (\x -> x : Nil)
+    (\l r -> (show l) ++ (' ' : show r))
+    (\v b -> '\': (v : ('.' : show b)));
 
---main = show (Lam 'a' (Com ('#' : ('a' : Nil))) :@ Com ('a':Nil));
-main = (show . (fst . get)) (lambda var ('\' : ('a' : ('.' : ('a' : Nil)))));
+main = (show . fst . get . atom);
 -- Bracket abstraction
