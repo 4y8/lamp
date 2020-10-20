@@ -79,7 +79,10 @@ Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
 
+(@) = App;
+
 -- Parser
+
 -- Parses a character satisfying the predicate f.
 -- case inp of
 --   [] -> Nothing
@@ -110,8 +113,35 @@ show e =
   e
     id
     (\x -> x : Nil)
-    (\l r -> (show l) ++ (' ' : show r))
+    (\l r -> '`' : show l ++ show r)
     (\v b -> '\': (v : ('.' : show b)));
 
-main = (show . fst . get . app);
+
 -- Bracket abstraction
+
+-- case e of
+--   Com c -> App (Var 'K') e
+--   Var v' -> if v' == v then Var 'I' else App (Var 'K') e
+--   App l r -> App (App (Var 'S') (abs v l)) (abs v r)
+abs v e =
+  e
+    (\_ -> Var 'K' @ e)
+    (\v' -> (v' == v)
+            (Var 'I')
+            (Var 'K' @ e))
+    (\l r -> Var 'S' @ abs v l @ abs v r)
+    undefined;
+
+-- case e of
+--   Com _ -> e
+--   Var _ -> e
+--   App l r -> App (babs l) (babs r)
+--   Lam v b -> abs v (babs b)
+babs e =
+  e
+    Com
+    Var
+    (\l r -> babs l @ babs r)
+    (\v b -> abs v (babs b));
+
+main = (show . babs . fst . get . app);
