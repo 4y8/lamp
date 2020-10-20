@@ -1,20 +1,25 @@
 undefined = I;
 
 -- Types
+-- Pairs
 (,) x y     = \f -> f x y;
 curry f l r = f (l, r);
 uncurry f x = x f;
 fst x = x const;
 snd x = x (\_ s -> s);
 
+-- Maybe
 Nothing = K;
 Just x  = \_ g -> g x;
 get e = e undefined id;
 
-(.) f g x = f (g x);
-
+-- Lists
 Nil     = K;
 (:) h t = \_ g -> g h t;
+(++) l l' = l l' (\h t -> h : (t ++ l'));
+ifNil l t f = l t (\_ _ -> f);
+head l = l undefined (\h _ -> h);
+tail l = l undefined (\_ t -> t);
 
 -- Combinators
 id x = x;
@@ -24,25 +29,8 @@ flip f x y = f y x;
 
 (&) x f = f x;
 ($) f x = f x;
+(.) f g x = f (g x);
 (||) f g x y = f x (g x y);
-
--- Lists
-(++) l l' = l l' (\h t -> h : (t ++ l'));
-ifNil l t f = l t (\_ _ -> f);
-head l = l undefined (\h _ -> h);
-tail l = l undefined (\_ t -> t);
-
--- Parser for combinators
-closes h = (hd == ')') || (hd == ';');
-pre h = (hd == '#') || (hd == '@');
-add r acc p = r (ifNil acc p ('`' : (acc ++ p)));
-
-sub r acc t = uncurry (add r acc) (r Nil t);
-
-atom r acc h t = ((\x y -> add r acc h:x y) (pre h (((head t) : Nil), (tail t)) (Nil, t)));
-
-term acc s =
-    s undefined (\h t -> (closes h) (acc, t) ((h == '(') (sub term acc t) (atom term acc h t)));
 
 -- Parser combinator library
 pure x inp = Just (x, inp);
@@ -94,15 +82,28 @@ char c = sat ((==) c);
 -- Matches any character.
 any = sat (\_ -> const);
 
+space = char ' ';
+spaces = many space;
+
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
 pre = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
 
-parent r = char '(' *> r <* char ')';
-lambda r = Lam <$> (char '\' *> char_v) <*> (char '.' *> r);
+parent r = char '(' *> spaces *> r <* spaces <* char ')';
+
+lambda r =
+  Lam
+  <$  char '\'
+  <*  spaces
+  <*> char_v
+  <*  spaces
+  <*  char '.'
+  <*  spaces
+  <*> r;
+
 var = Var <$> char_v;
 app r = App <$> r <*> r;
 atom r = parent r <|> pre <|> lambda r <|> var;
-app = chainl1 (pure App) (atom app);
+app = chainl1 (spaces *> pure App <* spaces) (atom app);
 
 -- case e of
 --   Com c -> c
