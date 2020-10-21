@@ -232,7 +232,7 @@ optimize e =
 	    (app
 	      p
 	      (\l q ->
-	        var
+	      	   var
 		  l
 		  'K'
 		  (var
@@ -267,6 +267,8 @@ abs v e =
     (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
     undefined;
 
+inc n = n + '!' - ' ';
+
 -- case e of
 --   Com _ -> e
 --   Var _ -> e
@@ -278,5 +280,19 @@ babs e =
     Var
     (\l r -> babs l @ babs r)
     (\v b -> abs v (babs b));
+
+find_list a l = l undefined (\h t -> (cmp_list h a) (inc (find_list a t)));
+combinators = 'S' : ('K' : ('I' : ('B' : Nil)));
+
+is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
+
+subst e l = e
+	       (const e)
+	       (\v ->
+	         (is_comb v combinators)
+		   e
+		   (Com ('@' : (find_list v l : Nil))))
+	       (\p q -> subst p l @ subst q l)
+	       (\v b -> Lam v (subst b l));
 
 main = (show . babs . snd . fst . get . top_level);
