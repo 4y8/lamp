@@ -3,7 +3,7 @@ open Combo
 
 let ($) l r = App (l, r)
 
-let combinators = ["K"; "I"; "B"; "C"; "S"; "S'"; "=="]
+let combinators = ["K"; "I"; "B"; "C"; "S"; "S'"; "=="; "<="]
 
 let rec to_deb e v n =
   match e with
@@ -57,6 +57,14 @@ let rec eval c =
      if (eval c l) = (eval c r)
      then Var "K"
      else Var "K" $ Var "I"
+  | App (App (Var "<=", l), r) ->
+     let l' = eval c l in
+     let r' = eval c r in
+     begin
+       match l', r' with
+         Chr c, Chr c' when c <= c' -> Var "K"
+       | _ -> Var "K" $ Var "I"
+     end
   | App (App (App (Var "B", f), g), x) ->
      eval c (f $ (g $ x))
   | App (App (App (Var "C", f), g), x) ->
@@ -82,7 +90,7 @@ let rec encode c =
     let c = Var "C" in
     let k = Var "K" in
     let i = Var "I" in
-    (b $ (b $ k))$ ((b $ c) $ (c $ i))
+    b $ (b $ k) $ ((b $ c) $ (c $ i))
   in
   function
   [] -> Var "K"

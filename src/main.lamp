@@ -1,6 +1,13 @@
 undefined = I;
 
 -- Types
+-- Booleans
+True  = \x _ -> x;
+False = \_ y -> y;
+
+(||) f g x y = f x (g x y);
+(&&) f g x y = f (g x y) y;
+
 -- Pairs
 (,) x y     = \f -> f x y;
 curry f l r = f (l, r);
@@ -16,10 +23,26 @@ get e = e undefined id;
 -- Lists
 Nil     = K;
 (:) h t = \_ g -> g h t;
-(++) l l' = l l' (\h t -> h : (t ++ l'));
+(++) l l' =
+  l
+    l'
+    (\h t -> h : (t ++ l'));
+
 ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
+cmp_list l l' =
+  l
+    (l'
+      True
+      (\_ _ -> False))
+    (\h t ->
+      l'
+        False
+	(\h' t' ->
+	  (h == h')
+	    (cmp_list t t')
+	    False));
 
 -- Combinators
 id x = x;
@@ -30,7 +53,6 @@ flip f x y = f y x;
 (&) x f = f x;
 ($) f x = f x;
 (.) f g x = f (g x);
-(||) f g x y = f x (g x y);
 
 -- Parser combinator library
 pure x inp = Just (x, inp);
@@ -57,11 +79,18 @@ bind f m = m Nothing (\x -> x f);
 
 opt def x = x <|> pure def;
 many p = opt Nil ((:) <$> p <*> many p);
+many1 p = (:) <$> p <*> many p;
 appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 
+range l r = sat (\x -> (l <= x) && (x <= r));
+lower = range 'a' 'z';
+upper = range 'A' 'Z';
+letter = lower <|> upper;
+ide = letter <|> char ''' <|> char '_';
+
 -- Ast
--- data Expr = Com [Char] | Var Char | App Expr Expr | Lam Char Expr
+-- data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr
 Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
@@ -94,16 +123,16 @@ lambda r =
   Lam
   <$  char '\'
   <*  spaces
-  <*> char_v
+  <*> many1 ide
   <*  spaces
-  <*  char '.'
+  <*  char '-'
+  <*  char '>'
   <*  spaces
   <*> r;
 
-var = Var <$> char_v;
-app r = App <$> r <*> r;
+var    = Var <$> many1 ide;
 atom r = parent r <|> pre <|> lambda r <|> var;
-app = chainl1 (spaces *> pure App <* spaces) (atom app);
+app    = chainl1 (spaces *> pure App <* spaces) (atom app);
 
 -- case e of
 --   Com c -> c
@@ -113,12 +142,13 @@ app = chainl1 (spaces *> pure App <* spaces) (atom app);
 show e =
   e
     id
-    (\x -> x : Nil)
+    id
     (\l r -> '`' : show l ++ show r)
-    (\v b -> '\': (v : ('.' : show b)));
-
+    (\v b -> '\': (v ++ ('.' : show b)));
 
 -- Bracket abstraction
+
+comb v = Var (v : Nil);
 
 -- case e of
 --   Com c -> App (Var 'K') e
@@ -126,11 +156,11 @@ show e =
 --   App l r -> App (App (Var 'S') (abs v l)) (abs v r)
 abs v e =
   e
-    (\_ -> Var 'K' @ e)
-    (\v' -> (v' == v)
-            (Var 'I')
-            (Var 'K' @ e))
-    (\l r -> Var 'S' @ abs v l @ abs v r)
+    (\_ -> comb 'K' @ e)
+    (\v' -> (cmp_list v' v)
+            (comb 'I')
+            (comb 'K' @ e))
+    (\l r -> comb 'S' @ abs v l @ abs v r)
     undefined;
 
 -- case e of
