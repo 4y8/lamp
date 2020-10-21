@@ -119,27 +119,31 @@ any = sat (\_ -> const);
 
 space = char ' ';
 spaces = many space;
+newline = char '
+';
+tab = char '	';
 
-preP = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
+blank p = many (tab <|> space <|> newline)
+       *> p
+      <*  many (tab <|> space <|> newline);
 
-parentP r = char '(' *> spaces *> r <* spaces <* char ')';
+preP = (\x y -> Com (x : (y : Nil))) <$> (char '#' <|> char '@') <*> any;
+
+parentP r = char '(' *> (blank r) <* char ')';
 
 name = many1 ide;
 
-lambdaP r =
-      Lam
-  <$  char '\'
-  <*  spaces
-  <*> name
-  <*  spaces
-  <*  char '-'
-  <*  char '>'
-  <*  spaces
-  <*> r;
+lambdaP r = Lam
+        <$  char '\'
+        <*> blank name
+        <*  char '-'
+        <*  char '>'
+        <*  spaces
+        <*> r;
 
 varP    = Var <$> name;
 atomP r = parentP r <|> preP <|> lambdaP r <|> varP;
-expr    = chainl1 (spaces *> pure App <* spaces) (atomP expr);
+expr    = chainl1 (blank (pure App)) (atomP expr);
 
 wrap_lam e l =
   l
@@ -147,27 +151,21 @@ wrap_lam e l =
     (\h t ->
       wrap_lam (Lam h e) t);
 
-equal =
-      (flip wrap_lam . reverse)
-  <$> many (spaces *> name <* spaces)
-  <*  spaces
-  <*  char '='
-  <*  spaces
-  <*> expr;
+equal = (flip wrap_lam . reverse)
+    <$> many (blank name)
+    <*  blank (char '=')
+    <*> expr;
 
-top_level =
-      (,)
-  <$> name
-  <*  spaces
-  <*> equal
-  <*  spaces
-  <*  char ';';
+top_level = (,)
+        <$> name
+        <*> blank equal
+        <*  char ';';
 
 -- case e of
 --   Com c -> c
---   Var v -> [v]
+--   Var v -> v
 --   App l r -> (show l) ++ (show r)
---   Lam v b -> '\' : v : '.' ++ (show b)
+--   Lam v b -> '\' : v ++ ('.' : (show b))
 show e =
   e
     id
