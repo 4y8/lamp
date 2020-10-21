@@ -23,10 +23,16 @@ get e = e undefined id;
 -- Lists
 Nil     = K;
 (:) h t = \_ g -> g h t;
+
 (++) l l' =
   l
     l'
     (\h t -> h : (t ++ l'));
+
+reverse l =
+  l
+    Nil
+    (\h t -> (reverse t) ++ (h : Nil));
 
 ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\h _ -> h);
@@ -114,15 +120,13 @@ any = sat (\_ -> const);
 space = char ' ';
 spaces = many space;
 
-char_v = sat (\c -> flip ((c == ';') || (c == ')')));
+preP = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
 
-pre = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
-
-parent r = char '(' *> spaces *> r <* spaces <* char ')';
+parentP r = char '(' *> spaces *> r <* spaces <* char ')';
 
 name = many1 ide;
 
-lambda r =
+lambdaP r =
       Lam
   <$  char '\'
   <*  spaces
@@ -133,22 +137,23 @@ lambda r =
   <*  spaces
   <*> r;
 
-var    = Var <$> name;
-atom r = parent r <|> pre <|> lambda r <|> var;
-app    = chainl1 (spaces *> pure App <* spaces) (atom app);
+varP    = Var <$> name;
+atomP r = parentP r <|> preP <|> lambdaP r <|> varP;
+expr    = chainl1 (spaces *> pure App <* spaces) (atomP expr);
 
 wrap_lam e l =
   l
     e
-    (\h t -> wrap_lam (Lam h e) t);
+    (\h t ->
+      wrap_lam (Lam h e) t);
 
 equal =
-      wrap_lam
-  <$> many (name <* spaces)
+      (flip wrap_lam . reverse)
+  <$> many (spaces *> name <* spaces)
   <*  spaces
   <*  char '='
   <*  spaces
-  <*> app;
+  <*> expr;
 
 top_level =
       (,)
@@ -175,6 +180,83 @@ show e =
 comb v = Var (v : Nil);
 
 -- case e of
+--   App l r ->
+--     case l of
+--       App l' r' ->
+--         case l' of
+--           Var v ->
+--             if v == "S"
+--             then
+--             case r' of
+--               App l'' r'' ->
+--                 case l'' of
+--                   Var v ->
+--                     if v == "K"
+--                     then
+--                     case r of
+--                       Var v -> if v == "I" then r'' else Var "B" @ r'' @ r
+--                       App l''' r''' ->
+--                         case l''' of
+--                           Var v -> if v == "K" then Var "K" @ (r'' @ r''')
+--                           _ -> Var "B" @ r'' @ r
+--                       _ -> Var "B" @ r'' @ r
+--                     else e
+--                   _ -> e
+--               _ -> e
+--             else e
+--           _ -> e
+--       _ -> e
+--   _ -> e
+
+app e f def = e (const def) (const def) f (\_ _ -> def);
+
+var e v f def =
+  e
+    (const def)
+    (\v' -> (cmp_list (v : Nil) v') f def)
+    (\_ _ -> def)
+    (\_ _ -> def);
+
+bopt p q = Var ('B' : Nil) @ p @ q;
+
+kopt p q = Var ('K' : Nil) @ (p @ q);
+
+optimize e =
+  app
+    e
+    (\l s ->
+      app
+        l
+	(\l p ->
+	  var
+	    l
+	    'S'
+	    (app
+	      p
+	      (\l q ->
+	        var
+		  l
+		  'K'
+		  (var
+		    s
+		    'I'
+		    q
+		    (app
+		      s
+		      (\l r ->
+		        var
+			  l
+			  'K'
+			  (kopt q r)
+			  (bopt q s))
+		      (bopt q s)))
+		  e)
+	      e)
+	    e)
+	e)
+    e;
+
+-- case e of
 --   Com c -> App (Var 'K') e
 --   Var v' -> if v' == v then Var 'I' else App (Var 'K') e
 --   App l r -> App (App (Var 'S') (abs v l)) (abs v r)
@@ -184,7 +266,7 @@ abs v e =
     (\v' -> (cmp_list v' v)
             (comb 'I')
             (comb 'K' @ e))
-    (\l r -> comb 'S' @ abs v l @ abs v r)
+    (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
     undefined;
 
 -- case e of
@@ -199,4 +281,4 @@ babs e =
     (\l r -> babs l @ babs r)
     (\v b -> abs v (babs b));
 
-main = (show . snd . fst . get . top_level);
+main = (show . babs . snd . fst . get . top_level);
