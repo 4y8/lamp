@@ -115,24 +115,48 @@ space = char ' ';
 spaces = many space;
 
 char_v = sat (\c -> flip ((c == ';') || (c == ')')));
+
 pre = Com <$> (((:) <$> (char '#' <|> char '@')) <*> ((\c -> c : Nil) <$> any));
 
 parent r = char '(' *> spaces *> r <* spaces <* char ')';
 
+name = many1 ide;
+
 lambda r =
-  Lam
+      Lam
   <$  char '\'
   <*  spaces
-  <*> many1 ide
+  <*> name
   <*  spaces
   <*  char '-'
   <*  char '>'
   <*  spaces
   <*> r;
 
-var    = Var <$> many1 ide;
+var    = Var <$> name;
 atom r = parent r <|> pre <|> lambda r <|> var;
 app    = chainl1 (spaces *> pure App <* spaces) (atom app);
+
+wrap_lam e l =
+  l
+    e
+    (\h t -> wrap_lam (Lam h e) t);
+
+equal =
+      wrap_lam
+  <$> many (name <* spaces)
+  <*  spaces
+  <*  char '='
+  <*  spaces
+  <*> app;
+
+top_level =
+      (,)
+  <$> name
+  <*  spaces
+  <*> equal
+  <*  spaces
+  <*  char ';';
 
 -- case e of
 --   Com c -> c
@@ -175,4 +199,4 @@ babs e =
     (\l r -> babs l @ babs r)
     (\v b -> abs v (babs b));
 
-main = (show . babs . fst . get . app);
+main = (show . snd . fst . get . top_level);
