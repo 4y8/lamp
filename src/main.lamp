@@ -281,7 +281,14 @@ babs e =
     (\l r -> babs l @ babs r)
     (\v b -> abs v (babs b));
 
-find_list a l = l undefined (\h t -> (cmp_list h a) (inc (find_list a t)));
+find_list a l =
+  l
+    undefined
+    (\h t ->
+      (cmp_list (fst h) a)
+        (' ' - ' ')
+        (inc (find_list a t)));
+
 combinators = 'S' : ('K' : ('I' : ('B' : Nil)));
 
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
@@ -291,8 +298,16 @@ subst e l = e
 	       (\v ->
 	         (is_comb v combinators)
 		   e
-		   (Com ('@' : (find_list v l : Nil))))
+		   (Com ('@' : ((' ' + find_list v l) : Nil))))
 	       (\p q -> subst p l @ subst q l)
 	       (\v b -> Lam v (subst b l));
 
-main = (show . babs . snd . fst . get . top_level);
+smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
+
+main = (show .
+	snd .
+	head .
+	(\l -> smap (flip subst l . babs) l) .
+	fst .
+	get .
+	many (blank top_level));
