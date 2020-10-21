@@ -34,6 +34,10 @@ reverse l =
     Nil
     (\h t -> (reverse t) ++ (h : Nil));
 
+map f l = l Nil (\h t -> f h : map f t);
+
+foldr f acc l = l acc (\h t -> f h (foldr f acc t));
+
 ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
@@ -62,6 +66,7 @@ flip f x y = f y x;
 
 -- Parser combinator library
 pure x inp = Just (x, inp);
+fail = const Nothing;
 bind f m = m Nothing (\x -> x f);
 
 -- case x inp of
@@ -88,6 +93,7 @@ many p = opt Nil ((:) <$> p <*> many p);
 many1 p = (:) <$> p <*> many p;
 appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
+choice = foldr (<|>) fail;
 
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
@@ -123,27 +129,52 @@ newline = char '
 ';
 tab = char '	';
 
-blank p = many (tab <|> space <|> newline)
+nul = tab
+  <|> space
+  <|> newline
+  <|> (char '-' <* char '-' <* sat (\x -> (x == '
+' False True)) <* newline);
+
+blank p = many nul
        *> p
-      <*  many (tab <|> space <|> newline);
+      <*  many nul;
+
+operators =
+   ':' :
+  ('=' :
+  ('|' :
+  ('&' :
+  ('*' :
+  ('<' :
+  ('>' :
+  ('$' :
+  ('+' :
+  ('-' :
+  (',' :
+  ('@' :
+  ('.' : Nil))))))))))));
+
+op = choice (map char operators);
+opp = many op;
 
 preP = (\x y -> Com (x : (y : Nil))) <$> (char '#' <|> char '@') <*> any;
 
-parentP r = char '(' *> (blank r) <* char ')';
+parentP = char '(' *> (blank expr) <* char ')';
 
 name = many1 ide;
 
-lambdaP r = Lam
-        <$  char '\'
-        <*> blank name
-        <*  char '-'
-        <*  char '>'
-        <*  spaces
-        <*> r;
+lambdaP = Lam
+      <$  char '\'
+      <*> blank name
+      <*  char '-'
+      <*  char '>'
+      <*  spaces
+      <*> expr;
 
-varP    = Var <$> name;
-atomP r = parentP r <|> preP <|> lambdaP r <|> varP;
-expr    = chainl1 (blank (pure App)) (atomP expr);
+varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
+atomP = parentP <|> preP <|> lambdaP <|> varP;
+appP  = chainl1 (blank (pure App)) atomP;
+expr  = chainl1 ((\x y z -> x @ y @ z) <$> blank opp) appP;
 
 wrap_lam e l =
   l
@@ -157,7 +188,7 @@ equal = (flip wrap_lam . reverse)
     <*> expr;
 
 top_level = (,)
-        <$> name
+        <$> (name <|> (char '(' *> blank opp <* char ')'))
         <*> blank equal
         <*  char ';';
 
