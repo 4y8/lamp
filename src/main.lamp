@@ -8,6 +8,9 @@ False = \_ y -> y;
 (||) f g x y = f x (g x y);
 (&&) f g x y = f (g x y) y;
 
+(==) = E;
+(<=) = L;
+
 -- Pairs
 (,) x y     = \f -> f x y;
 curry f l r = f (l, r);
@@ -102,6 +105,7 @@ lower = range 'a' 'z';
 upper = range 'A' 'Z';
 letter = lower <|> upper;
 ide = letter <|> char ''' <|> char '_';
+digit = range '0' '9';
 
 -- Ast
 -- data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr
@@ -165,7 +169,7 @@ preP = (\x y -> Com (x : (y : Nil))) <$> (char '#' <|> char '@') <*> any;
 
 parentP = char '(' *> blank expr <* char ')';
 
-name = many1 ide;
+name = (:) <$> ide <*> many (ide <|> digit);
 
 lambdaP = (flip wrap_lam . reverse)
       <$  char '\'
@@ -329,7 +333,15 @@ find_list a l =
         (' ' - ' ')
         (inc (find_list a t)));
 
-combinators = 'S' : ('K' : ('I' : ('B' : Nil)));
+combinators = 'S' :
+             ('K' :
+	     ('I' :
+	     ('B' :
+	     ('E' :
+	     ('L' :
+	     ('+' :
+	     ('-' :
+	     ('C' : Nil))))))));
 
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
 
