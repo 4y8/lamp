@@ -175,7 +175,7 @@ let rec reloc c =
 
 let rec evalvm c =
   function
-    In n -> List.nth c n
+    In n -> List.nth c (n - 32)
   | A (I, e) -> e
   | A (A (K, e), _) -> e
   | A (A (A (S, p), q), r) ->
@@ -216,8 +216,14 @@ let rec evalvm c =
          Cr c, Cr c' -> Cr (c - c')
        | _ -> e
      end
-  | A (A (A (A (Cn, p), _), q), r) ->
+  | A (A (A (A (Cn, p), q), _), r) ->
      evalvm c (A (A (r, p), q))
+  | A (l, r) ->
+     let l' = evalvm c l in
+     let e = A (l', r) in
+     if l = l'
+     then e
+     else evalvm c e
   | e -> e
 
 let rec encode_asm =
@@ -253,14 +259,19 @@ let rec decode c e =
 
 let vm s =
   let l = sepBy (between spaces (char ';') spaces) expr s in
-  let s = read_line () in
   match l with
     None -> failwith "Syntax error"
   | Some (p, _) ->
-     show_asm (evalvm p (A (last p, encode_asm (explode s))))
+     let s = read_line () in
+     decode_asm p (evalvm p (A (last p, encode_asm (explode s))))
 
 let () =
-  let ic = open_in "../main.lamp" in
+  let ic = open_in "comb" in
+  let s' = really_input_string ic (in_channel_length ic) in
+  print_endline (vm (explode s'));
+
+  (*
+let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   seek_in ic 0;
   let s = really_input_string ic (in_channel_length ic) in
@@ -274,5 +285,10 @@ let () =
     | (f, s) :: tl ->
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
   in
+  begin
+    match expr (explode "`I`K@a") with
+      None -> failwith ""
+    | Some (e, _) -> print_endline (show_asm e);
+  end;
   clist p []
-
+   *)
