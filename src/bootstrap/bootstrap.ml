@@ -1,9 +1,46 @@
 open Gram
 open Combo
+open Fun
+
+type asm
+  = S
+  | K
+  | I
+  | B
+  | C
+  | L
+  | E
+  | P
+  | M
+  | A  of asm * asm
+  | Cr of int
+  | In of int
+  | Cn
+
+let combs =
+  ['S', S;
+   'K', K;
+   'I', I;
+   'C', C;
+   'B', B;
+   '+', P;
+   '-', M;
+   'E', E;
+   'L', L;
+   ':', Cn
+  ]
+
+let rec expr =
+  fun s ->
+           ((choice (List.map (fun (x, y) -> return y <* char x) combs))
+       <|> ((fun l r -> A (l, r)) <$ char '`' <*> expr <*> expr)
+       <|> ((fun i -> In i) <$ char '@' <*> (int_of_char <$> any))
+       <|> ((fun i -> Cr i) <$ char '#' <*> (int_of_char <$> any))) s
 
 let ($) l r = App (l, r)
 
-let combinators = ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
+let combinators =
+  ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
 
 let rec to_deb e v n =
   match e with
@@ -45,14 +82,14 @@ let opt =
 (*
   | App (App (Var "S", (App (App (Var "B", p), q))), r) ->
      Var "S'" $ p $ q $ r
- *)     
+ *)
   | e -> e
 
 let rec abs e i =
   match e with
     Deb n when n = i -> Var "I"
   | App (l, r) when (not (in_lam e)) ->
-     opt ((Var "S") $ (abs l i) $ (abs r i)) 
+     opt ((Var "S") $ (abs l i) $ (abs r i))
   | n -> (Var "K") $ (dec_deb n)
 
 let rec brack e =
@@ -125,7 +162,7 @@ let rec eval c =
 
 let rec reloc c =
   function
-    Var v when (not (List.mem v combinators)) -> 
+    Var v when (not (List.mem v combinators)) ->
      snd (List.find (fun x -> (fst x) = v) c)
   | App (l, r) -> App (reloc c l, reloc c r)
   | Lam (_, e) -> Lam ("", reloc c e)
@@ -148,7 +185,7 @@ let rec decode c e =
   | _ -> failwith "Bad string"
 
 let () =
-  let ic = open_in "../main.lamp" in
+  let ic = open_in "../infile" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   seek_in ic 0;
   let s = really_input_string ic (in_channel_length ic) in

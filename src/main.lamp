@@ -1,5 +1,11 @@
 undefined = I;
 
+-- Combinators
+id = I;
+const = K;
+flip = C;
+(.) = B;
+
 -- Types
 -- Booleans
 True  = \x _ -> x;
@@ -22,7 +28,7 @@ Just x  = \_ g -> g x;
 get e = e undefined id;
 
 -- Lists
-Nil     = K;
+Nil = K;
 
 (++) l l' =
   l
@@ -55,12 +61,6 @@ cmp_list l l' =
 	    False));
 
 last l = l undefined (\h t -> t h (\_ _ -> last t));
-
--- Combinators
-id = I;
-const = K;
-flip = C;
-(.) = B;
 
 -- Parser combinator library
 pure x inp = Just (x, inp);
@@ -123,13 +123,12 @@ char c = sat ((==) c);
 any = sat (\_ -> const);
 
 space = char ' ';
-spaces = many space;
 newline = char '
 ';
 tab = char '	';
 
-nul = tab
-  <|> space
+nul = space
+  <|> tab
   <|> newline
   <|> (char '-'
    <*  char '-'
@@ -324,7 +323,8 @@ combinators = 'S' :
 	     ('L' :
 	     ('+' :
 	     ('-' :
-	     ('C' : Nil))))))));
+	     (':' :
+	     ('C' : Nil)))))))));
 
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
 
@@ -339,9 +339,9 @@ subst e l = e
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
-main = (foldl (++) Nil .
+main = (foldr (\l l' -> l ++ (';' : l')) Nil .
         map (show . snd) .
-	(\l -> smap (flip subst l . babs) l) .
-	fst .
-	get .
-	many (blank top_level));
+        (\l -> smap (flip subst l . babs) l) .
+        fst .
+        get .
+        many (blank top_level));
