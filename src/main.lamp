@@ -252,6 +252,7 @@ var e v f def =
     (\_ _ -> def);
 
 bopt p q = Var ('B' : Nil) @ p @ q;
+copt p q = Var ('C' : Nil) @ p @ q;
 kopt p q = Var ('K' : Nil) @ (p @ q);
 
 optimize e =
@@ -285,7 +286,25 @@ optimize e =
 		      (bopt q s)))
 		  e)
 	      e)
-	    e)
+-- (
+--	    (app
+--	      l
+--	      (\l q ->
+--	        var
+--		  l
+--		  'S'
+--		  (app
+--		    s
+--		    (\l r ->
+--		      var
+--		        l
+--			'K'
+--			(copt p r)
+--			e)
+--		  e)
+--		e)
+--           e))
+           e)
 	e)
     e;
 

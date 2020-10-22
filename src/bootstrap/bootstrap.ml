@@ -18,34 +18,39 @@ type asm
 [@@deriving show]
 
 let combs =
-  ['S', S;
-   'K', K;
-   'I', I;
-   'C', C;
-   'B', B;
-   '+', P;
-   '-', M;
-   'E', E;
-   'L', L;
-   ':', Cn
+  ['S', Var "S";
+   'K', Var "K";
+   'I', Var "I";
+   'C', Var "C";
+   'B', Var "B";
+   '+', Var "P";
+   '-', Var "M";
+   'E', Var "E";
+   'L', Var "L";
+   ':', Var ","
   ]
+
+let revcombs =
+  let f, s = List.split combs in
+  List.combine s f
 
 let rec expr =
   fun s ->
            ((choice (List.map (fun (x, y) -> return y <* char x) combs))
-       <|> ((fun l r -> A (l, r)) <$ char '`' <*> expr <*> expr)
-       <|> ((fun i -> In i) <$ char '@' <*> (int_of_char <$> any))
-       <|> ((fun i -> Cr i) <$ char '#' <*> (int_of_char <$> any))) s
+       <|> ((fun l r -> App (l, r)) <$ char '`' <*> expr <*> expr)
+       <|> ((fun i -> Loc i) <$ char '@' <*> (int_of_char <$> any))
+       <|> ((fun c -> Chr c) <$ char '#' <*> any)) s
 
 let ($) l r = App (l, r)
 
 let combinators =
   ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
 
-let rec last = function
-    [] -> failwith "Last element of empty list"
-  | hd :: [] -> hd
+let rec last =
+  function
+    [hd] -> hd
   | _ :: tl -> last tl
+  | _ -> failwith "Last element of empty list"
 
 let rec to_deb e v n =
   match e with
@@ -89,6 +94,27 @@ let opt =
      Var "S'" $ p $ q $ r
  *)
   | e -> e
+
+let rec print_expr =
+  function
+    Var v -> v
+  | App (l, r) -> (String.make 1 '`') ^ (print_expr l) ^ (print_expr r)
+  | Loc n -> inplode ['@'; char_of_int (n + 32)]
+  | Chr c -> inplode ['#'; c]
+  | _ -> raise Not_found
+
+(*
+let rec print_asm e =
+  let o = List.assq_opt e revcombs in
+  match o with
+    Some s -> String.make 1 s
+  | None ->
+     match e with
+       Cr c -> inplode ['#'; char_of_int c]
+     | In n -> inplode ['@'; char_of_int n]
+     | A (l, r) -> (inplode ['`']) ^ (print_asm l) ^ (print_asm r)
+     | _ -> raise Not_found
+ *)
 
 let rec abs e i =
   match e with
@@ -162,13 +188,18 @@ let rec eval c =
      if l = l'
      then e
      else eval c e
-  | Loc n -> snd (List.nth c n)
+  | Loc n -> snd (List.nth c (n - 32))
   | e -> e
+
+let rec find v =
+  function
+    [] -> raise Not_found
+  | (f, _) :: _ when f = v -> 0
+  | _ :: tl -> 1 + find v tl
 
 let rec reloc c =
   function
-    Var v when (not (List.mem v combinators)) ->
-     snd (List.find (fun x -> (fst x) = v) c)
+    Var v when (not (List.mem v combinators)) -> Loc (find v c)
   | App (l, r) -> App (reloc c l, reloc c r)
   | Lam (_, e) -> Lam ("", reloc c e)
   | e -> e
@@ -176,9 +207,10 @@ let rec reloc c =
 let rec evalvm c =
   function
     In n -> List.nth c (n - 32)
-  | A (I, e) -> e
-  | A (A (K, e), _) -> e
+  | A (I, e) -> evalvm c e
+  | A (A (K, e), _) -> evalvm c e
   | A (A (A (S, p), q), r) ->
+     let r = evalvm c r in
      evalvm c (A (A (p, r), A (q, r)))
   | A (A (A (B, f), g), x) ->
      evalvm c (A (f, A (g, x)))
@@ -241,6 +273,7 @@ let rec decode_asm c e =
        | _ -> failwith "Bad string"
      end
   | _ -> failwith "Bad string"
+
 let rec encode c =
   function
   [] -> Var "K"
@@ -263,32 +296,31 @@ let vm s =
     None -> failwith "Syntax error"
   | Some (p, _) ->
      let s = read_line () in
-     decode_asm p (evalvm p (A (last p, encode_asm (explode s))))
+     let l = List.map (Fun.const "") p in
+     let e = last p in
+     let p = List.combine l p in
+     let e = eval p (App (e, encode [] (explode s))) in
+     decode p e
 
 let () =
-  let ic = open_in "comb" in
-  let s' = really_input_string ic (in_channel_length ic) in
-  print_endline (vm (explode s'));
-
-  (*
-let ic = open_in "../main.lamp" in
+  let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   seek_in ic 0;
-  let s = really_input_string ic (in_channel_length ic) in
-  close_in ic;
-
   let rec clist l c =
     match l with
-      [] -> raise Not_found
+      [] -> ()
     | ("main", e) :: _ ->
-       print_endline (decode c (eval c (reloc c(brack (to_deb e "#" (-1)) $ (encode c (explode s))))));
+  let s = really_input_string ic (in_channel_length ic) in
+       let s = encode c (explode s) in
+       let e = brack (to_deb e "#" (-1)) in
+       print_endline (decode c (eval c (e $ s)));
     | (f, s) :: tl ->
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
+(*
+    | (_, e) :: tl ->
+       print_string (print_expr (reloc c (brack (to_deb e "#" (-1)))));
+       print_char ';';
+       clist tl c
+ *)
   in
-  begin
-    match expr (explode "`I`K@a") with
-      None -> failwith ""
-    | Some (e, _) -> print_endline (show_asm e);
-  end;
   clist p []
-   *)
