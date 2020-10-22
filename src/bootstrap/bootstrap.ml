@@ -1,6 +1,5 @@
 open Gram
 open Combo
-open Fun
 
 type asm
   = S
@@ -16,6 +15,7 @@ type asm
   | Cr of int
   | In of int
   | Cn
+[@@deriving show]
 
 let combs =
   ['S', S;
@@ -41,6 +41,11 @@ let ($) l r = App (l, r)
 
 let combinators =
   ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
+
+let rec last = function
+    [] -> failwith "Last element of empty list"
+  | hd :: [] -> hd
+  | _ :: tl -> last tl
 
 let rec to_deb e v n =
   match e with
@@ -168,6 +173,68 @@ let rec reloc c =
   | Lam (_, e) -> Lam ("", reloc c e)
   | e -> e
 
+let rec evalvm c =
+  function
+    In n -> List.nth c n
+  | A (I, e) -> e
+  | A (A (K, e), _) -> e
+  | A (A (A (S, p), q), r) ->
+     evalvm c (A (A (p, r), A (q, r)))
+  | A (A (A (B, f), g), x) ->
+     evalvm c (A (f, A (g, x)))
+  | A (A (A (C, f), g), x) ->
+     evalvm c (A (A (f, x), g))
+  | A (A (E, l), r) ->
+     let l = evalvm c l in
+     let r = evalvm c r in
+     begin
+       match l, r with
+         Cr c, Cr c' when c = c' -> K
+       | _ -> A (K, I)
+     end
+  | A (A (L, l), r) ->
+     let l = evalvm c l in
+     let r = evalvm c r in
+     begin
+       match l, r with
+         Cr c, Cr c' when c <= c' -> K
+       | _ -> A (K, I)
+     end
+  | A (A (P, l), r) as e ->
+     let l = evalvm c l in
+     let r = evalvm c r in
+     begin
+       match l, r with
+         Cr c, Cr c' -> Cr (c + c')
+       | _ -> e
+     end
+  | A (A (M, l), r) as e ->
+     let l = evalvm c l in
+     let r = evalvm c r in
+     begin
+       match l, r with
+         Cr c, Cr c' -> Cr (c - c')
+       | _ -> e
+     end
+  | A (A (A (A (Cn, p), _), q), r) ->
+     evalvm c (A (A (r, p), q))
+  | e -> e
+
+let rec encode_asm =
+  function
+  [] -> K
+| hd :: tl -> A (A (Cn, Cr (int_of_char hd)), (encode_asm tl))
+
+let rec decode_asm c e =
+  match evalvm c e with
+    K -> ""
+  | A (A (Cn, h), t) ->
+     begin
+       match evalvm c h with
+         Cr c' -> (String.make 1 (char_of_int c')) ^ (decode_asm c t)
+       | _ -> failwith "Bad string"
+     end
+  | _ -> failwith "Bad string"
 let rec encode c =
   function
   [] -> Var "K"
@@ -184,8 +251,16 @@ let rec decode c e =
      end
   | _ -> failwith "Bad string"
 
+let vm s =
+  let l = sepBy (between spaces (char ';') spaces) expr s in
+  let s = read_line () in
+  match l with
+    None -> failwith "Syntax error"
+  | Some (p, _) ->
+     show_asm (evalvm p (A (last p, encode_asm (explode s))))
+
 let () =
-  let ic = open_in "../infile" in
+  let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   seek_in ic 0;
   let s = really_input_string ic (in_channel_length ic) in
@@ -200,3 +275,4 @@ let () =
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
   in
   clist p []
+
