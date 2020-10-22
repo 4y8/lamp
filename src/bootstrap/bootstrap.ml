@@ -23,11 +23,11 @@ let combs =
    'I', Var "I";
    'C', Var "C";
    'B', Var "B";
-   '+', Var "P";
-   '-', Var "M";
+   '+', Var "+";
+   '-', Var "-";
    'E', Var "E";
    'L', Var "L";
-   ':', Var ","
+   ':', Var ":"
   ]
 
 let revcombs =
@@ -303,15 +303,20 @@ let vm s =
      decode p e
 
 let () =
+  let ic = open_in "comb" in
+  let s = really_input_string ic (in_channel_length ic) in
+  print_endline (vm (explode s));
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
-  seek_in ic 0;
   let rec clist l c =
     match l with
       [] -> ()
     | ("main", e) :: _ ->
-  let s = really_input_string ic (in_channel_length ic) in
-       let s = encode c (explode s) in
+       seek_in ic 0;
+       let ic = open_in "../prelude.lamp" in
+       let prelude = really_input_string ic (in_channel_length ic) in
+       let s = read_line () in
+       let s = encode c (explode (prelude ^ s)) in
        let e = brack (to_deb e "#" (-1)) in
        print_endline (decode c (eval c (e $ s)));
     | (f, s) :: tl ->

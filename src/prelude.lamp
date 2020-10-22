@@ -1,0 +1,52 @@
+undefined = I;
+
+-- Combinators
+id = I;
+const = K;
+flip = C;
+(.) = B;
+
+-- Types
+-- Booleans
+True  = \x _ -> x;
+False = \_ y -> y;
+
+(||) f g x y = f x (g x y);
+(&&) f g x y = f (g x y) y;
+
+(==) = E;
+(<=) = L;
+
+-- Pairs
+(,) x y     = \f -> f x y;
+fst x = x const;
+snd x = x (\_ s -> s);
+
+-- Maybe
+Nothing = K;
+Just x  = \_ g -> g x;
+get e = e undefined id;
+
+-- Lists
+Nil = K;
+
+(++) l l' =
+  l
+    l'
+    (\h t -> h : (t ++ l'));
+
+reverse l =
+  l
+    Nil
+    (\h t -> (reverse t) ++ (h : Nil));
+
+map f l = l Nil (\h t -> f h : map f t);
+
+foldr f acc l = l acc (\h t -> f h (foldr f acc t));
+foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
+
+head l = l undefined (\h _ -> h);
+tail l = l undefined (\_ t -> t);
+
+last l = l undefined (\h t -> t h (\_ _ -> last t));
+
