@@ -251,9 +251,9 @@ var e v f def =
     (\_ _ -> def)
     (\_ _ -> def);
 
-bopt p q = Var ('B' : Nil) @ p @ q;
-copt p q = Var ('C' : Nil) @ p @ q;
-kopt p q = Var ('K' : Nil) @ (p @ q);
+bopt p q = comb 'B' @ p @ q;
+copt p q = comb 'C' @ p @ q;
+kopt p q = comb 'K' @ (p @ q);
 
 optimize e =
   app
@@ -261,51 +261,46 @@ optimize e =
     (\l s ->
       app
         l
-	(\l p ->
-	  var
-	    l
-	    'S'
-	    (app
-	      p
-	      (\l q ->
-	      	   var
-		  l
-		  'K'
-		  (var
-		    s
-		    'I'
-		    q
-		    (app
-		      s
-		      (\l r ->
-		        var
-			  l
-			  'K'
-			  (kopt q r)
-			  (bopt q s))
-		      (bopt q s)))
-		  e)
-	      e)
--- (
---	    (app
---	      l
---	      (\l q ->
---	        var
---		  l
---		  'S'
---		  (app
---		    s
---		    (\l r ->
---		      var
---		        l
---			'K'
---			(copt p r)
---			e)
---		  e)
---		e)
---           e))
-           e)
-	e)
+        (\l p ->
+          var
+            l
+            'S'
+            (app
+              p
+              (\l q ->
+                var
+                  l
+                  'K'
+                  (s
+                     (const (bopt q s))
+                     (\v -> (cmp_list ('I' : Nil) v) q (bopt q s))
+                     (\l r ->
+                       var
+                         l
+                         'K'
+                         (kopt q r)
+                         (bopt q s))
+                     (\_ _ -> bopt q s))
+                  e)
+              e)
+            (app
+              l
+              (\l q ->
+                var
+                  l
+                  'S'
+                  (app
+                    s
+                    (\l r ->
+                      var
+                        l
+                        'K'
+                        (copt p r)
+                        e)
+                  e)
+              e)
+           e))
+         e)
     e;
 
 abs v e =
@@ -336,27 +331,28 @@ find_list a l =
 
 combinators = 'S' :
              ('K' :
-	     ('I' :
-	     ('B' :
-	     ('E' :
-	     ('L' :
-	     ('+' :
-	     ('-' :
-	     (':' :
-	     ('C' : Nil)))))))));
+             ('I' :
+             ('B' :
+             ('E' :
+             ('L' :
+             ('+' :
+             ('-' :
+             (':' :
+             ('C' : Nil)))))))));
 
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
 
 subst e l = e
-	       (const e)
-	       (\v ->
-	         (is_comb v combinators)
-		   e
-		   (Com ('@' : ((' ' + find_list v l) : Nil))))
-	       (\p q -> subst p l @ subst q l)
-	       (\v b -> Lam v (subst b l));
+               (const e)
+               (\v ->
+                 (is_comb v combinators)
+                   e
+                   (Com ('@' : ((' ' + find_list v l) : Nil))))
+               (\p q -> subst p l @ subst q l)
+               (\v b -> Lam v (subst b l));
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
+
 
 main = (foldr (\l l' -> l ++ (';' : l')) Nil .
         map (show . snd) .
