@@ -132,7 +132,10 @@ let rec decode c =
 let () =
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
-  let s  = read_line () in
+  seek_in ic 0;
+  let s = really_input_string ic (in_channel_length ic) in
+  close_in ic;
+
   let rec clist l c =
     match l with
       [] -> raise Not_found

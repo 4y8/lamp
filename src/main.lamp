@@ -54,6 +54,8 @@ cmp_list l l' =
 	    (cmp_list t t')
 	    False));
 
+last l = l undefined (\h t -> t h (\_ _ -> last t));
+
 -- Combinators
 id x = x;
 const x _ = x;
@@ -132,8 +134,10 @@ tab = char '	';
 nul = tab
   <|> space
   <|> newline
-  <|> (char '-' <* char '-' <* sat (\x -> (x == '
-' False True)) <* newline);
+  <|> (char '-'
+   <*  char '-'
+    *> many (sat (\x -> (x == '
+') False True)));
 
 blank p = many nul
        *> p
@@ -159,22 +163,27 @@ opp = many op;
 
 preP = (\x y -> Com (x : (y : Nil))) <$> (char '#' <|> char '@') <*> any;
 
-parentP = char '(' *> (blank expr) <* char ')';
+parentP = char '(' *> blank expr <* char ')';
 
 name = many1 ide;
 
-lambdaP = Lam
+lambdaP = (flip wrap_lam . reverse)
       <$  char '\'
-      <*> blank name
+      <*> many (blank name)
       <*  char '-'
       <*  char '>'
-      <*  spaces
+      <*  many nul
       <*> expr;
 
+charP = (\x -> Com ('#' : (x : Nil)))
+    <$  char '''
+    <*> any
+    <*  char ''';
+
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> preP <|> lambdaP <|> varP;
+atomP = parentP <|> charP <|> preP <|> lambdaP <|> varP;
 appP  = chainl1 (blank (pure App)) atomP;
-expr  = chainl1 ((\x y z -> x @ y @ z) <$> blank opp) appP;
+expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
 wrap_lam e l =
   l
@@ -337,7 +346,7 @@ smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
 main = (show .
 	snd .
-	head .
+	last .
 	(\l -> smap (flip subst l . babs) l) .
 	fst .
 	get .
