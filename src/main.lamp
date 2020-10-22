@@ -253,7 +253,40 @@ var e v f def =
 
 bopt p q = comb 'B' @ p @ q;
 copt p q = comb 'C' @ p @ q;
-kopt p q = comb 'K' @ (p @ q);
+kopt s p q l r = var
+                   l
+                   'K'
+                   (comb 'K' @ (p @ q))
+                   (bopt q s);
+
+ctest e l s p =
+  app
+    l
+    (\l q ->
+      var
+        l
+        'S'
+        (app
+          s
+          (\l r ->
+            var
+              l
+              'K'
+              (copt p r)
+              e)
+          e)
+        e)
+    e;
+
+svopt e s p l q = var
+                    l
+                    'K'
+                    (s
+                       (const (bopt q s))
+                       (\v -> (cmp_list ('I' : Nil) v) q (bopt q s))
+                       (kopt s p q)
+                       (\_ _ -> bopt q s))
+                    e;
 
 optimize e =
   app
@@ -267,40 +300,10 @@ optimize e =
             'S'
             (app
               p
-              (\l q ->
-                var
-                  l
-                  'K'
-                  (s
-                     (const (bopt q s))
-                     (\v -> (cmp_list ('I' : Nil) v) q (bopt q s))
-                     (\l r ->
-                       var
-                         l
-                         'K'
-                         (kopt q r)
-                         (bopt q s))
-                     (\_ _ -> bopt q s))
-                  e)
+              (svopt e s p)
               e)
-            (app
-              l
-              (\l q ->
-                var
-                  l
-                  'S'
-                  (app
-                    s
-                    (\l r ->
-                      var
-                        l
-                        'K'
-                        (copt p r)
-                        e)
-                  e)
-              e)
-           e))
-         e)
+            (ctest e l s p))
+        e)
     e;
 
 abs v e =

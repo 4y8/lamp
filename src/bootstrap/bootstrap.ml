@@ -312,11 +312,12 @@ let () =
     match l with
       [] -> ()
     | ("main", e) :: _ ->
-       seek_in ic 0;
+       (*
        let ic = open_in "../prelude.lamp" in
+        *)
+       seek_in ic 0;
        let prelude = really_input_string ic (in_channel_length ic) in
-       let s = read_line () in
-       let s = encode c (explode (prelude ^ s)) in
+       let s = encode c (explode (prelude)) in
        let e = brack (to_deb e "#" (-1)) in
        print_endline (decode c (eval c (e $ s)));
     | (f, s) :: tl ->

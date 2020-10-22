@@ -49,4 +49,3 @@ head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
 
 last l = l undefined (\h t -> t h (\_ _ -> last t));
-
