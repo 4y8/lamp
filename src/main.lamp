@@ -13,8 +13,6 @@ False = \_ y -> y;
 
 -- Pairs
 (,) x y     = \f -> f x y;
-curry f l r = f (l, r);
-uncurry f x = x f;
 fst x = x const;
 snd x = x (\_ s -> s);
 
@@ -25,7 +23,6 @@ get e = e undefined id;
 
 -- Lists
 Nil     = K;
-(:) h t = \_ g -> g h t;
 
 (++) l l' =
   l
@@ -40,8 +37,8 @@ reverse l =
 map f l = l Nil (\h t -> f h : map f t);
 
 foldr f acc l = l acc (\h t -> f h (foldr f acc t));
+foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
 
-ifNil l t f = l t (\_ _ -> f);
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
 cmp_list l l' =
@@ -60,14 +57,10 @@ cmp_list l l' =
 last l = l undefined (\h t -> t h (\_ _ -> last t));
 
 -- Combinators
-id x = x;
-const x _ = x;
-fix x = x (fix x);
-flip f x y = f y x;
-
-(&) x f = f x;
-($) f x = f x;
-(.) f g x = f (g x);
+id = I;
+const = K;
+flip = C;
+(.) = B;
 
 -- Parser combinator library
 pure x inp = Just (x, inp);
@@ -260,7 +253,6 @@ var e v f def =
     (\_ _ -> def);
 
 bopt p q = Var ('B' : Nil) @ p @ q;
-
 kopt p q = Var ('K' : Nil) @ (p @ q);
 
 optimize e =
@@ -298,10 +290,6 @@ optimize e =
 	e)
     e;
 
--- case e of
---   Com c -> App (Var 'K') e
---   Var v' -> if v' == v then Var 'I' else App (Var 'K') e
---   App l r -> App (App (Var 'S') (abs v l)) (abs v r)
 abs v e =
   e
     (\_ -> comb 'K' @ e)
@@ -313,11 +301,6 @@ abs v e =
 
 inc n = n + '!' - ' ';
 
--- case e of
---   Com _ -> e
---   Var _ -> e
---   App l r -> App (babs l) (babs r)
---   Lam v b -> abs v (babs b)
 babs e =
   e
     Com
@@ -356,9 +339,8 @@ subst e l = e
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
-main = (show .
-	snd .
-	last .
+main = (foldl (++) Nil .
+        map (show . snd) .
 	(\l -> smap (flip subst l . babs) l) .
 	fst .
 	get .

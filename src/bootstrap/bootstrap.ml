@@ -3,7 +3,7 @@ open Combo
 
 let ($) l r = App (l, r)
 
-let combinators = ["K"; "I"; "B"; "C"; "S"; "S'"; "E"; "L"; "+"; "-"]
+let combinators = ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
 
 let rec to_deb e v n =
   match e with
@@ -30,10 +30,22 @@ let opt =
     App (App (Var "S", App (Var "K", p)), App (Var "K", q)) ->
      Var "K" $ (p $ q)
   | App (App (Var "S", App (Var "K", p)), Var "I") -> p
+(*
+  | App (App (Var "S", App (Var "K", p)), App (App (Var "B", q), r)) ->
+     Var "B*" $ p $ q $ r
+ *)
   | App (App (Var "S", App (Var "K", p)), q) ->
      Var "B" $ p $ q
+(*
+  | App (App (Var "S", (App (App (Var "B", p), q))), App (Var "K", r)) ->
+     Var "C'" $ p $ q $ r
+ *)
   | App (App (Var "S", p), App (Var "K", q)) ->
      Var "C" $ p $ q
+(*
+  | App (App (Var "S", (App (App (Var "B", p), q))), r) ->
+     Var "S'" $ p $ q $ r
+ *)     
   | e -> e
 
 let rec abs e i =
@@ -83,6 +95,8 @@ let rec eval c =
           Chr (char_of_int ((int_of_char c) - (int_of_char c')))
        | _ -> e
      end
+  | App (App (App (App (Var ":", s), p), _), q) ->
+     eval c (q $ s $ p)
   | App (App (App (Var "B", f), g), x) ->
      eval c (f $ (g $ x))
   | App (App (App (Var "C", f), g), x) ->
@@ -90,44 +104,48 @@ let rec eval c =
   | App (App (App (Var "S", x), y), z) ->
      let z = eval c z in
      eval c ((x $ z) $ (y $ z))
+(*
   | App (App (App (App (Var "S'", r), f), g), x) ->
      eval c (r $ (f $ x) $ (g $ x))
+  | App (App (App (App (Var "B*", r), f), g), x) ->
+     eval c (r $ (f $ (g $ x)))
+  | App (App (App (App (Var "C'", r), f), g), x) ->
+     eval c (r $ (f $ x) $ g)
+ *)
   | Var v when (not (List.mem v combinators)) ->
-     brack (List.assoc v c)
+     List.assoc v c
   | App (l, r) ->
      let l' = eval c l in
      let e = l' $ r in
      if l = l'
      then e
      else eval c e
+  | Loc n -> snd (List.nth c n)
+  | e -> e
+
+let rec reloc c =
+  function
+    Var v when (not (List.mem v combinators)) -> 
+     snd (List.find (fun x -> (fst x) = v) c)
+  | App (l, r) -> App (reloc c l, reloc c r)
+  | Lam (_, e) -> Lam ("", reloc c e)
   | e -> e
 
 let rec encode c =
-  let cons =
-    let b = Var "B" in
-    let c = Var "C" in
-    let k = Var "K" in
-    let i = Var "I" in
-    b $ (b $ k) $ ((b $ c) $ (c $ i))
-  in
   function
   [] -> Var "K"
-| hd :: tl -> eval c (cons $ Chr hd $ (encode c tl))
+| hd :: tl -> (Var ":" $ Chr hd $ (encode c tl))
 
-let rec decode c =
-  let common e =
-    let c = Var "C" in
-    let i = Var "I" in
-    c $ (c $ i $ i) $ e
-  in
-  let head = common (Var "K") in
-  let tail = common (Var "K" $ Var "I") in
-  function
+let rec decode c e =
+  match eval c e with
     Var "K" -> ""
-  | e ->
-     match eval c (head $ e) with
-       Chr c' -> (String.make 1 c') ^ (decode c (eval c (tail $ e)))
-     | _ -> failwith "Invalid output string"
+  | App (App (Var ":", h), t) ->
+     begin
+       match eval c h with
+         Chr c' -> (String.make 1 c') ^ (decode c t)
+       | _ -> failwith "Bad string"
+     end
+  | _ -> failwith "Bad string"
 
 let () =
   let ic = open_in "../main.lamp" in
@@ -140,8 +158,8 @@ let () =
     match l with
       [] -> raise Not_found
     | ("main", e) :: _ ->
-       print_endline (decode c (eval c (brack (to_deb e "#" (-1)) $ (encode c (explode s)))));
+       print_endline (decode c (eval c (reloc c(brack (to_deb e "#" (-1)) $ (encode c (explode s))))));
     | (f, s) :: tl ->
-       clist tl ((f, (to_deb s "#" (-1))) :: c)
+       clist tl ((f, brack (to_deb s "#" (-1))) :: c)
   in
   clist p []
