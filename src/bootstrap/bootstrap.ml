@@ -59,12 +59,6 @@ let rec to_deb e v n =
   | Lam (v', b) -> Lam ("", to_deb (to_deb b v' 0) v (n + 1))
   | e -> e
 
-let rec in_lam e =
-  match e with
-    App (l, r) -> ((in_lam l) || (in_lam r))
-  | Lam _ -> true
-  | _ -> false
-
 let rec dec_deb =
   function
     Deb n -> Deb (n - 1)
@@ -119,7 +113,7 @@ let rec print_asm e =
 let rec abs e i =
   match e with
     Deb n when n = i -> Var "I"
-  | App (l, r) when (not (in_lam e)) ->
+  | App (l, r) ->
      opt ((Var "S") $ (abs l i) $ (abs r i))
   | n -> (Var "K") $ (dec_deb n)
 
@@ -132,7 +126,7 @@ let rec brack e =
 let rec eval c =
   function
     App (Var "I", e) -> eval c e
-  | App (App (Var "K", l), _) -> (eval c l)
+  | App (App (Var "K", l), _) -> eval c l
   | App (App (Var "E", l), r) ->
      if (eval c l) = (eval c r)
      then Var "K"
@@ -306,27 +300,30 @@ let () =
   let ic = open_in "comb" in
   let s = really_input_string ic (in_channel_length ic) in
   print_endline (vm (explode s));
+  (*
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   let rec clist l c =
     match l with
       [] -> ()
     | ("main", e) :: _ ->
-       (*
-       let ic = open_in "../prelude.lamp" in
-        *)
        seek_in ic 0;
        let prelude = really_input_string ic (in_channel_length ic) in
+       
        let s = encode c (explode (prelude)) in
+
        let e = brack (to_deb e "#" (-1)) in
-       print_endline (decode c (eval c (e $ s)));
+
+       let s = decode c (eval c (e $ s)) in
+       print_endline s;
     | (f, s) :: tl ->
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
-(*
+       (*
     | (_, e) :: tl ->
        print_string (print_expr (reloc c (brack (to_deb e "#" (-1)))));
        print_char ';';
        clist tl c
- *)
+        *)
   in
-  clist p []
+  clist p p
+   *)
