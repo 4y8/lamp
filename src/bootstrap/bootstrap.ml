@@ -308,6 +308,7 @@ let () =
     match l with
       [] -> ()
     | ("main", e) :: _ ->
+       let ic = open_in "../infile" in
        seek_in ic 0;
        let prelude = really_input_string ic (in_channel_length ic) in
        let s = encode c (explode (prelude)) in

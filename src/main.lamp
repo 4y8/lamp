@@ -158,8 +158,6 @@ operators =
 op = choice (map char operators);
 opp = many op;
 
-preP = (\x y -> Com (x : (y : Nil))) <$> (char '#' <|> char '@') <*> any;
-
 parentP = char '(' *> blank expr <* char ')';
 
 name = (:) <$> ide <*> many (ide <|> digit);
@@ -178,7 +176,7 @@ charP = (\x -> Com ('#' : (x : Nil)))
     <*  char ''';
 
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> preP <|> lambdaP <|> varP;
+atomP = parentP <|> charP <|> lambdaP <|> varP;
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
