@@ -43,7 +43,6 @@ reverse l =
 map f l = l Nil (\h t -> f h : map f t);
 
 foldr f acc l = l acc (\h t -> f h (foldr f acc t));
-foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
 
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
@@ -108,6 +107,8 @@ Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
 
+comb v = Var (v : Nil);
+
 (@) = App;
 
 -- Parser
@@ -170,13 +171,26 @@ lambdaP = (flip wrap_lam . reverse)
       <*  many nul
       <*> expr;
 
-charP = (\x -> Com ('#' : (x : Nil)))
+chr c = Com ('#' : (c : Nil));
+
+charP = chr
     <$  char '''
     <*> any
     <*  char ''';
 
+str l = l
+          (comb 'K')
+	  (\h t -> comb ':' @ chr h @ str t);
+
+dquote = '"'; --"
+
+stringP = str
+      <$  char dquote
+      <*> many (sat (\x -> (x == dquote) False True))
+      <*  char dquote; 
+
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> lambdaP <|> varP;
+atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP;
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -209,9 +223,6 @@ show e =
     (\v b -> '\': (v ++ ('.' : show b)));
 
 -- Bracket abstraction
-
-comb v = Var (v : Nil);
-
 -- case e of
 --   App l r ->
 --     case l of
