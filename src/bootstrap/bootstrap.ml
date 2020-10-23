@@ -297,10 +297,11 @@ let vm s =
      decode p e
 
 let () =
+  (*
   let ic = open_in "comb" in
   let s = really_input_string ic (in_channel_length ic) in
   print_endline (vm (explode s));
-  (*
+   *)
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   let rec clist l c =
@@ -309,13 +310,11 @@ let () =
     | ("main", e) :: _ ->
        seek_in ic 0;
        let prelude = really_input_string ic (in_channel_length ic) in
-       
        let s = encode c (explode (prelude)) in
-
        let e = brack (to_deb e "#" (-1)) in
-
        let s = decode c (eval c (e $ s)) in
        print_endline s;
+       print_endline (vm (explode s))
     | (f, s) :: tl ->
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
        (*
@@ -326,4 +325,3 @@ let () =
         *)
   in
   clist p p
-   *)

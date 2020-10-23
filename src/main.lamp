@@ -253,29 +253,20 @@ var e v f def =
     (\_ _ -> def);
 
 bopt p q = comb 'B' @ p @ q;
-copt p q = comb 'C' @ p @ q;
 kopt s p q l r = var
                    l
                    'K'
                    (comb 'K' @ (q @ r))
                    (bopt q s);
 
-ctest e l s p =
+copt e s p =
   app
-    l
+    s
     (\l q ->
       var
         l
-        'S'
-        (app
-          s
-          (\l r ->
-            var
-              l
-              'K'
-              (copt p r)
-              e)
-          e)
+        'K'
+        (comb 'C' @ p @ q)
         e)
     e;
 
@@ -295,15 +286,15 @@ optimize e =
     (\l s ->
       app
         l
-        (\l p ->
+        (\l' p ->
           var
-            l
+            l'
             'S'
             (app
               p
               (svopt e s p)
-              e)
-            (ctest e l s p))
+              (copt e s p))
+            e)
         e)
     e;
 
@@ -322,7 +313,7 @@ babs e =
   e
     Com
     Var
-    (\l r -> babs l @ babs r)
+    (\l r -> (babs l) @ (babs r))
     (\v b -> abs v (babs b));
 
 find_list a l =
@@ -347,7 +338,7 @@ combinators = 'S' :
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
 
 subst e l = e
-               (const e)
+               Com
                (\v ->
                  (is_comb v combinators)
                    e
@@ -356,7 +347,6 @@ subst e l = e
                (\v b -> Lam v (subst b l));
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
-
 
 main = (foldr (\l l' -> l ++ (';' : l')) Nil .
         map (show . snd) .
