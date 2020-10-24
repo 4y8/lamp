@@ -93,6 +93,9 @@ appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 choice = foldr (<|>) fail;
 
+sepBy1 sep p  = (:) <$> p <*> many (sep *> p);
+sepBy sep p = opt Nil (sepBy1 sep p);
+
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
 upper = range 'A' 'Z';
@@ -180,8 +183,13 @@ lst l = l
          (Var "K")
          (\h t -> Var ":" @ h @ lst t);
 
+listP = lst
+    <$  blank (char '[')
+    <*> sepBy (blank (char ';')) expr
+    <*  blank (char ']');
+
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP;
+atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP <|> listP;
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
