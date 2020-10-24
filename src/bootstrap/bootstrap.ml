@@ -289,12 +289,12 @@ let vm s =
   match l with
     None -> failwith "Syntax error"
   | Some (p, _) ->
-     (*
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
-      *)
+     (*
      let s = read_line () in
+      *)
      let l = List.map (Fun.const "") p in
      let e = last p in
      let p = List.combine l p in

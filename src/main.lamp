@@ -89,9 +89,13 @@ bind f m = m Nothing (\x -> x f);
 opt def x = x <|> pure def;
 many p = opt Nil ((:) <$> p <*>| (\_ -> many p));
 many1 p = (:) <$> p <*> many p;
+
 appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 choice = foldr (<|>) fail;
+
+sepBy1 sep p = (:) <$> p <*> many (sep *> p);
+sepBy sep p  = opt Nil (sepBy1 sep p);
 
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
@@ -106,8 +110,6 @@ Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
-
-comb v = Var (v : Nil);
 
 (@) = App;
 
@@ -141,20 +143,7 @@ blank p = many nul
        *> p
       <*  many nul;
 
-operators =
-   ':' :
-  ('=' :
-  ('|' :
-  ('&' :
-  ('*' :
-  ('<' :
-  ('>' :
-  ('$' :
-  ('+' :
-  ('-' :
-  (',' :
-  ('@' :
-  ('.' : Nil))))))))))));
+operators = ":=|+-,.&<*>$@";
 
 op = choice (map char operators);
 opp = many op;
@@ -179,18 +168,27 @@ charP = chr
     <*  char ''';
 
 str l = l
-          (comb 'K')
-	  (\h t -> comb ':' @ chr h @ str t);
+          (Var "K")
+	  (\h t -> Var ":" @ chr h @ str t);
 
 dquote = '"'; --"
 
 stringP = str
       <$  char dquote
       <*> many (sat (\x -> (x == dquote) False True))
-      <*  char dquote; 
+      <*  char dquote;
+
+lst l = l
+         (Var "K")
+         (\h t -> Var ":" @ h @ lst t);
+
+listP = lst
+    <$  blank (char '[')
+    <*> sepBy (blank (char ';')) expr
+    <*  blank (char ']');
 
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP;
+atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP <|> listP;
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -257,15 +255,15 @@ app e f def = e (const def) (const def) f (\_ _ -> def);
 var e v f def =
   e
     (const def)
-    (\v' -> (cmp_list (v : Nil) v') f def)
+    (\v' -> (cmp_list v v') f def)
     (\_ _ -> def)
     (\_ _ -> def);
 
-bopt p q = comb 'B' @ p @ q;
+bopt p q = Var "B" @ p @ q;
 kopt s p q l r = var
                    l
-                   'K'
-                   (comb 'K' @ (q @ r))
+                   "K"
+                   (Var "K" @ (q @ r))
                    (bopt q s);
 
 copt e s p =
@@ -274,17 +272,17 @@ copt e s p =
     (\l q ->
       var
         l
-        'K'
-        (comb 'C' @ p @ q)
+        "K"
+        (Var "C" @ p @ q)
         e)
     e;
 
 svopt e s p l q = var
                     l
-                    'K'
+                    "K"
                     (s
                        (const (bopt q s))
-                       (\v -> (cmp_list ('I' : Nil) v) q (bopt q s))
+                       (\v -> (cmp_list "I" v) q (bopt q s))
                        (kopt s p q)
                        (\_ _ -> bopt q s))
                     e;
@@ -298,7 +296,7 @@ optimize e =
         (\l' p ->
           var
             l'
-            'S'
+            "S"
             (app
               p
               (svopt e s p)
@@ -309,11 +307,11 @@ optimize e =
 
 abs v e =
   e
-    (\_ -> comb 'K' @ e)
+    (\_ -> Var "K" @ e)
     (\v' -> (cmp_list v' v)
-            (comb 'I')
-            (comb 'K' @ e))
-    (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
+            (Var "I")
+            (Var "K" @ e))
+    (\l r -> optimize (Var "K" @ abs v l @ abs v r))
     undefined;
 
 inc n = n + '!' - ' ';
@@ -333,16 +331,7 @@ find_list a l =
         (' ' - ' ')
         (inc (find_list a t)));
 
-combinators = 'S' :
-             ('K' :
-             ('I' :
-             ('B' :
-             ('E' :
-             ('L' :
-             ('+' :
-             ('-' :
-             (':' :
-             ('C' : Nil)))))))));
+combinators = "SICKBEL+-:";
 
 is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
 

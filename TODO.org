@@ -1,2 +1,10 @@
-* TODO finish bootstraping
+* DONE finish bootstraping
+* TODO List sugar
+* TODO Pattern matching
+** TODO ADTs
+** TODO simple patterns
+** TODO nested patterns
+* TODO More optimizations
+** TODO C vm
+** TODO Oleg ski
 * TODO G-Machine backend
