@@ -89,13 +89,9 @@ bind f m = m Nothing (\x -> x f);
 opt def x = x <|> pure def;
 many p = opt Nil ((:) <$> p <*>| (\_ -> many p));
 many1 p = (:) <$> p <*> many p;
-
 appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 choice = foldr (<|>) fail;
-
-sepBy1 sep p = (:) <$> p <*> many (sep *> p);
-sepBy sep p  = opt Nil (sepBy1 sep p);
 
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
@@ -110,6 +106,8 @@ Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
+
+comb v = Var (v : Nil);
 
 (@) = App;
 
@@ -169,7 +167,7 @@ charP = chr
 
 str l = l
           (Var "K")
-	  (\h t -> Var ":" @ chr h @ str t);
+	  (\h t -> comb ':' @ chr h @ str t);
 
 dquote = '"'; --"
 
@@ -182,13 +180,8 @@ lst l = l
          (Var "K")
          (\h t -> Var ":" @ h @ lst t);
 
-listP = lst
-    <$  blank (char '[')
-    <*> sepBy (blank (char ';')) expr
-    <*  blank (char ']');
-
 varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP <|> listP;
+atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP;
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -255,14 +248,14 @@ app e f def = e (const def) (const def) f (\_ _ -> def);
 var e v f def =
   e
     (const def)
-    (\v' -> (cmp_list v v') f def)
+    (\v' -> (cmp_list (v : Nil) v') f def)
     (\_ _ -> def)
     (\_ _ -> def);
 
 bopt p q = Var "B" @ p @ q;
 kopt s p q l r = var
                    l
-                   "K"
+                   'K'
                    (Var "K" @ (q @ r))
                    (bopt q s);
 
@@ -272,14 +265,14 @@ copt e s p =
     (\l q ->
       var
         l
-        "K"
+        'K'
         (Var "C" @ p @ q)
         e)
     e;
 
 svopt e s p l q = var
                     l
-                    "K"
+                    'K'
                     (s
                        (const (bopt q s))
                        (\v -> (cmp_list "I" v) q (bopt q s))
@@ -296,7 +289,7 @@ optimize e =
         (\l' p ->
           var
             l'
-            "S"
+            'S'
             (app
               p
               (svopt e s p)
@@ -311,7 +304,7 @@ abs v e =
     (\v' -> (cmp_list v' v)
             (Var "I")
             (Var "K" @ e))
-    (\l r -> optimize (Var "K" @ abs v l @ abs v r))
+    (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
     undefined;
 
 inc n = n + '!' - ' ';
