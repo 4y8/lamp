@@ -73,8 +73,8 @@ appall x l = l x (\h t -> appall (h x) t);
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 choice = foldr (<|>) fail;
 
-sepBy1 sep p  = (:) <$> p <*> many (sep *> p);
-sepBy sep p = opt Nil (sepBy1 sep p);
+sepBy1 sep p = (:) <$> p <*> many (sep *> p);
+sepBy sep p  = opt Nil (sepBy1 sep p);
 
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
@@ -89,15 +89,11 @@ Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
 
-comb v = Var (v : Nil);
-
 (@) = App;
 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
--- Matches the character c.
 char c = sat ((==) c);
--- Matches any character.
 any = sat (\_ -> const);
 
 space = char ' ';
@@ -248,7 +244,7 @@ abs v e =
     (\v' -> (cmp_list v' v)
 	    (Var "I")
 	    (Var "K" @ e))
-    (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
+    (\l r -> optimize (Var "S" @ abs v l @ abs v r))
     undefined;
 
 inc n = n + '!' - ' ';

@@ -1,5 +1,5 @@
 * DONE finish bootstraping
-* TODO List sugar
+* DONE List sugar
 * TODO Where clauses
 * TODO Pattern matching
 ** TODO ADTs

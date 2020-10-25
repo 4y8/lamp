@@ -173,16 +173,16 @@ let rec eval c =
      eval c (r $ (f $ (g $ x)))
   | App (App (App (App (Var "C'", r), f), g), x) ->
      eval c (r $ (f $ x) $ g)
- *)
   | Var v when (not (List.mem v combinators)) ->
      List.assoc v c
+ *)
   | App (l, r) ->
      let l' = eval c l in
      let e = l' $ r in
      if l = l'
      then e
      else eval c e
-  | Loc n -> snd (List.nth c (n - 32))
+  | Loc n -> snd (c.(n - 32))
   | e -> e
 
 let rec find v =
@@ -267,7 +267,7 @@ let rec svm s =
   match s with
     '`' :: 'I' :: tl -> svm tl
   | '`' :: '`' :: 'K' :: tl ->
-     let x, tl = get tl in 
+     let x, tl = get tl in
      let _, tl = get tl in
      svm (x @ tl)
   | _ -> raise Not_found
@@ -315,6 +315,7 @@ let vm s =
      let l = List.map (Fun.const "") p in
      let e = last p in
      let p = List.combine l p in
+     let p = Array.of_list p in
      let e = eval p (e $ encode [] (explode s)) in
      decode p e
 
