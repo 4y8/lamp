@@ -1,13 +1,10 @@
 undefined = I;
 
--- Combinators
 id = I;
 const = K;
 flip = C;
 (.) = B;
 
--- Types
--- Booleans
 True  = \x _ -> x;
 False = \_ y -> y;
 
@@ -17,17 +14,14 @@ False = \_ y -> y;
 (==) = E;
 (<=) = L;
 
--- Pairs
 (,) x y     = \f -> f x y;
 fst x = x const;
 snd x = x (\_ s -> s);
 
--- Maybe
 Nothing = K;
 Just x  = \_ g -> g x;
 get e = e undefined id;
 
--- Lists
 Nil = K;
 
 (++) l l' =
@@ -53,7 +47,7 @@ cmp_list l l' =
       (\_ _ -> False))
     (\h t ->
       l'
-        False
+	False
 	(\h' t' ->
 	  (h == h')
 	    (cmp_list t t')
@@ -61,7 +55,6 @@ cmp_list l l' =
 
 last l = l undefined (\h t -> t h (\_ _ -> last t));
 
--- Parser combinator library
 pure x inp = Just (x, inp);
 fail = const Nothing;
 bind f m = m Nothing (\x -> x f);
@@ -90,7 +83,6 @@ letter = lower <|> upper;
 ide = letter <|> char ''' <|> char '_';
 digit = range '0' '9';
 
--- Ast
 -- data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr
 Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
@@ -100,8 +92,6 @@ Lam v b = \_ _ _ d -> d v b;
 comb v = Var (v : Nil);
 
 (@) = App;
-
--- Parser
 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
@@ -151,7 +141,7 @@ charP = char '''
     <*  char ''');
 
 str l = l
-          (Var "K")
+	  (Var "K")
 	  (\h t -> Var ":" @ chr h @ str t);
 
 dquote = '"'; --"
@@ -161,8 +151,8 @@ stringP = char dquote
       <*  char dquote);
 
 lst l = l
-         (Var "K")
-         (\h t -> Var ":" @ h @ lst t);
+	 (Var "K")
+	 (\h t -> Var ":" @ h @ lst t);
 
 listP = lst
     <$> (char '['
@@ -186,9 +176,9 @@ equal = (flip wrap_lam . reverse)
     <*> expr;
 
 top_level = (,)
-        <$> (name <|> (char '(' *> blank opp <* char ')'))
-        <*> blank equal
-        <*  char ';';
+	<$> (name <|> (char '(' *> blank opp <* char ')'))
+	<*> blank equal
+	<*  char ';';
 
 show e =
   e
@@ -208,56 +198,56 @@ var e v f def =
 
 bopt p q = Var "B" @ p @ q;
 kopt s p q l r = var
-                   l
-                   'K'
-                   (Var "K" @ (q @ r))
-                   (bopt q s);
+		   l
+		   'K'
+		   (Var "K" @ (q @ r))
+		   (bopt q s);
 
 copt e s p =
   app
     s
     (\l q ->
       var
-        l
-        'K'
-        (Var "C" @ p @ q)
-        e)
+	l
+	'K'
+	(Var "C" @ p @ q)
+	e)
     e;
 
 svopt e s p l q = var
-                    l
-                    'K'
-                    (s
-                       (const (bopt q s))
-                       (\v -> (cmp_list "I" v) q (bopt q s))
-                       (kopt s p q)
-                       (\_ _ -> bopt q s))
-                    e;
+		    l
+		    'K'
+		    (s
+		       (const (bopt q s))
+		       (\v -> (cmp_list "I" v) q (bopt q s))
+		       (kopt s p q)
+		       (\_ _ -> bopt q s))
+		    e;
 
 optimize e =
   app
     e
     (\l s ->
       app
-        l
-        (\l' p ->
-          var
-            l'
-            'S'
-            (app
-              p
-              (svopt e s p)
-              (copt e s p))
-            e)
-        e)
+	l
+	(\l' p ->
+	  var
+	    l'
+	    'S'
+	    (app
+	      p
+	      (svopt e s p)
+	      (copt e s p))
+	    e)
+	e)
     e;
 
 abs v e =
   e
     (\_ -> Var "K" @ e)
     (\v' -> (cmp_list v' v)
-            (Var "I")
-            (Var "K" @ e))
+	    (Var "I")
+	    (Var "K" @ e))
     (\l r -> optimize (comb 'S' @ abs v l @ abs v r))
     undefined;
 
@@ -275,27 +265,27 @@ find_list a l =
     undefined
     (\h t ->
       (cmp_list (fst h) a)
-        (' ' - ' ')
-        (inc (find_list a t)));
+	(' ' - ' ')
+	(inc (find_list a t)));
 
 combinators = "SICKBEL+-:";
 
 is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
 
 subst e l = e
-               Com
-               (\v ->
-                 (is_comb v combinators)
-                   e
-                   (Com ('@' : ((' ' + find_list v l) : Nil))))
-               (\p q -> subst p l @ subst q l)
-               (\v b -> Lam v (subst b l));
+	       Com
+	       (\v ->
+		  (is_comb v combinators)
+		  e
+		   (Com ('@' : ((' ' + find_list v l) : Nil))))
+	       (\p q -> subst p l @ subst q l)
+	       (\v b -> Lam v (subst b l));
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
 main = (foldr (\l l' -> l ++ (';' : l')) Nil .
-        map (show . snd) .
-        (\l -> smap (flip subst l . babs) l) .
-        fst .
-        get .
-        many (blank top_level));
+	map (show . snd) .
+	(\l -> smap (flip subst l . babs) l) .
+	fst .
+	get .
+	many (blank top_level));
