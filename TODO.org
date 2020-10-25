@@ -8,6 +8,7 @@
 * TODO (Possibly monadic) I/O
 * TODO Module system
 * TODO List comprehension
+* TODO GADTs
 * TODO More optimizations
 ** TODO C vm
 ** TODO Oleg ski

@@ -204,7 +204,6 @@ let rec evalvm c =
   | A (I, e) -> evalvm c e
   | A (A (K, e), _) -> evalvm c e
   | A (A (A (S, p), q), r) ->
-     let r = evalvm c r in
      evalvm c (A (A (p, r), A (q, r)))
   | A (A (A (B, f), g), x) ->
      evalvm c (A (f, A (g, x)))
@@ -252,6 +251,27 @@ let rec evalvm c =
      else evalvm c e
   | e -> e
 
+let rec get s =
+  match s with
+    '`' :: tl ->
+     let f, tl = get tl in
+     let s, tl = get tl in
+     ('`' :: f @ s), tl
+  | ('#' as c) :: c' :: tl
+  | ('@' as c) :: c' :: tl ->
+      [c; c'], tl
+  | hd :: tl -> [hd], tl
+  | _ -> raise Not_found
+
+let rec svm s =
+  match s with
+    '`' :: 'I' :: tl -> svm tl
+  | '`' :: '`' :: 'K' :: tl ->
+     let x, tl = get tl in 
+     let _, tl = get tl in
+     svm (x @ tl)
+  | _ -> raise Not_found
+
 let rec encode_asm =
   function
   [] -> K
@@ -292,9 +312,6 @@ let vm s =
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
-     (*
-     let s = read_line () in
-      *)
      let l = List.map (Fun.const "") p in
      let e = last p in
      let p = List.combine l p in

@@ -65,23 +65,10 @@ last l = l undefined (\h t -> t h (\_ _ -> last t));
 pure x inp = Just (x, inp);
 fail = const Nothing;
 bind f m = m Nothing (\x -> x f);
-
--- case x inp of
---   Nothing      -> Nothing
---   Just (a, l)  ->
---     case y l of
---       Nothing -> Nothing
---       Just (b, l') -> Just (a b, l')
 (<*>) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q t)) (p inp);
 (<*>|) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q I t)) (p inp);
-
--- case x inp of
---   Nothing -> y inp
---   Just n  -> Just n
 (<|>) p q = \inp -> (p inp) (q inp) Just;
-
 (<$>) f p = pure f <*> p;
-
 (<$) f p = const <$> pure f <*> p;
 (<*) p q = const <$> p      <*> q;
 (*>) p q = id    <$  p      <*> q;
@@ -116,10 +103,6 @@ comb v = Var (v : Nil);
 
 -- Parser
 
--- Parses a character satisfying the predicate f.
--- case inp of
---   [] -> Nothing
---   h : tl -> if f h then (pure h t) else Nothing
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
 -- Matches the character c.
@@ -133,12 +116,12 @@ newline = char '
 tab = char '	';
 
 nul = space
-  <|> tab
-  <|> newline
+  <|> (tab
+  <|> (newline
   <|> (char '-'
-   <*  char '-'
+   <*  (char '-'
     *> many (sat (\x -> (x == '
-') False True)));
+') False True))))));
 
 blank p = many nul
        *> p
@@ -153,43 +136,41 @@ parentP = char '(' *> blank expr <* char ')';
 
 name = (:) <$> ide <*> many (ide <|> digit);
 
-lambdaP = (flip wrap_lam . reverse)
-      <$  char '\'
-      <*> many (blank name)
-      <*  char '-'
-      <*  char '>'
-      <*  many nul
-      <*> expr;
+lambdaP = (char '\'
+       *> ((flip wrap_lam . reverse)
+      <$> many (blank name)
+      <*> (char '-'
+       *> (char '>'
+       *> (many nul
+       *> expr)))));
 
 chr c = Com ('#' : (c : Nil));
 
-charP = chr
-    <$  char '''
-    <*> any
-    <*  char ''';
+charP = char '''
+     *> ((chr <$> any)
+    <*  char ''');
 
 str l = l
           (Var "K")
-	  (\h t -> comb ':' @ chr h @ str t);
+	  (\h t -> Var ":" @ chr h @ str t);
 
 dquote = '"'; --"
 
-stringP = str
-      <$  char dquote
-      <*> many (sat (\x -> (x == dquote) False True))
-      <*  char dquote;
+stringP = char dquote
+       *> ((str <$> many (sat (\x -> (x == dquote) False True)))
+      <*  char dquote);
 
 lst l = l
          (Var "K")
          (\h t -> Var ":" @ h @ lst t);
 
 listP = lst
-    <$  blank (char '[')
-    <*> sepBy (blank (char ';')) expr
-    <*  blank (char ']');
+    <$> (char '['
+     *> (sepBy (blank (char ';')) expr
+    <*  char ']'));
 
-varP  = Var <$> (name <|> (char '(' *> blank opp <* char ')'));
-atomP = parentP <|> charP <|> lambdaP <|> varP <|> stringP <|> listP;
+varP  = Var <$> (name <|> (char '(' *> (blank opp <* char ')')));
+atomP = parentP <|> (charP <|> (varP <|> (lambdaP <|> (stringP <|> listP))));
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -209,47 +190,12 @@ top_level = (,)
         <*> blank equal
         <*  char ';';
 
--- case e of
---   Com c -> c
---   Var v -> v
---   App l r -> (show l) ++ (show r)
---   Lam v b -> '\' : v ++ ('.' : (show b))
 show e =
   e
     id
     id
     (\l r -> '`' : show l ++ show r)
     (\v b -> '\': (v ++ ('.' : show b)));
-
--- Bracket abstraction
--- case e of
---   App l r ->
---     case l of
---       App l' r' ->
---         case l' of
---           Var v ->
---             if v == "S"
---             then
---             case r' of
---               App l'' r'' ->
---                 case l'' of
---                   Var v ->
---                     if v == "K"
---                     then
---                     case r of
---                       Var v -> if v == "I" then r'' else Var "B" @ r'' @ r
---                       App l''' r''' ->
---                         case l''' of
---                           Var v -> if v == "K" then Var "K" @ (r'' @ r''')
---                           _ -> Var "B" @ r'' @ r
---                       _ -> Var "B" @ r'' @ r
---                     else e
---                   _ -> e
---               _ -> e
---             else e
---           _ -> e
---       _ -> e
---   _ -> e
 
 app e f def = e (const def) (const def) f (\_ _ -> def);
 
@@ -334,7 +280,7 @@ find_list a l =
 
 combinators = "SICKBEL+-:";
 
-is_comb v l = l False (\h t -> (cmp_list v (h : Nil)) True (is_comb v t));
+is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
 
 subst e l = e
                Com
