@@ -63,6 +63,10 @@ find_list a l =
 	(' ' - ' ')
 	(inc (find_list a t)));
 
+combinators = "SICKBEL+-:";
+
+is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
+
 pure x inp = Just (x, inp);
 fail = const Nothing;
 bind f m = m Nothing (\x -> x f);
@@ -248,8 +252,15 @@ listP = lst
      *> (sepBy (blank (char ';')) expr
     <*  char ']'));
 
-varP  = Var <$> (name <|> (char '(' *> (blank opp <* char ')')));
-atomP = parentP <|> (charP <|> (varP <|> (lambdaP <|> (stringP <|> listP))));
+varP  = (\v -> is_comb v combinators (Com v) (Var v)) <$> name;
+opP   = char '(' *> (Var <$> blank opp <* char ')');
+atomP = parentP
+    <|> (charP
+    <|> (varP
+    <|> (lambdaP
+    <|> (stringP
+    <|> (listP
+    <|> opP)))));
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -278,37 +289,37 @@ show e =
 
 app e f def = e (const def) (const def) f (\_ _ -> def);
 
-var e v f def =
+com e v f def =
   e
-    (const def)
     (\v' -> (cmp_list (v : Nil) v') f def)
+    (const def)
     (\_ _ -> def)
     (\_ _ -> def);
 
-bopt p q = Var "B" @ p @ q;
-kopt s p q l r = var
+bopt p q = Com "B" @ p @ q;
+kopt s p q l r = com
 		   l
 		   'K'
-		   (Var "K" @ (q @ r))
+		   (Com "K" @ (q @ r))
 		   (bopt q s);
 
 copt e s p =
   app
     s
     (\l q ->
-      var
+      com
 	l
 	'K'
-	(Var "C" @ p @ q)
+	(Com "C" @ p @ q)
 	e)
     e;
 
-svopt e s p l q = var
+svopt e s p l q = com
 		    l
 		    'K'
 		    (s
-		       (const (bopt q s))
 		       (\v -> (cmp_list "I" v) q (bopt q s))
+		       (const (bopt q s))
 		       (kopt s p q)
 		       (\_ _ -> bopt q s))
 		    e;
@@ -320,7 +331,7 @@ optimize e =
       app
 	l
 	(\l' p ->
-	  var
+	  com
 	    l'
 	    'S'
 	    (app
@@ -333,11 +344,11 @@ optimize e =
 
 abs v e =
   e
-    (\_ -> Var "K" @ e)
+    (\_ -> Com "K" @ e)
     (\v' -> (cmp_list v' v)
-	    (Var "I")
-	    (Var "K" @ e))
-    (\l r -> optimize (Var "S" @ abs v l @ abs v r))
+	    (Com "I")
+	    (Com "K" @ e))
+    (\l r -> optimize (Com "S" @ abs v l @ abs v r))
     undefined;
 
 
@@ -348,16 +359,10 @@ babs e =
     (\l r -> (babs l) @ (babs r))
     (\v b -> abs v (babs b));
 
-combinators = "SICKBEL+-:";
-
-is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
-
 subst e l = e
 	       Com
 	       (\v ->
-		  (is_comb v combinators)
-		  e
-		   (Com ('@' : ((' ' + find_list v l) : Nil))))
+		  (Com ('@' : ((' ' + find_list v l) : Nil))))
 	       (\p q -> subst p l @ subst q l)
 	       (\v b -> Lam v (subst b l));
 

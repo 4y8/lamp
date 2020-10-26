@@ -173,16 +173,16 @@ let rec eval c =
      eval c (r $ (f $ (g $ x)))
   | App (App (App (App (Var "C'", r), f), g), x) ->
      eval c (r $ (f $ x) $ g)
+ *)
   | Var v when (not (List.mem v combinators)) ->
      List.assoc v c
- *)
   | App (l, r) ->
      let l' = eval c l in
      let e = l' $ r in
      if l = l'
      then e
      else eval c e
-  | Loc n -> c.(n - 32)
+  | Loc n -> snd (List.nth c (n - 32))
   | e -> e
 
 let rec find v =
@@ -309,19 +309,23 @@ let vm s =
   match l with
     None -> failwith "Syntax error"
   | Some (p, _) ->
+     (*
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
+      *) let s = read_line () in
      let e = last p in
-     let p = Array.of_list p in
+     let l = List.map (Fun.const "") p in
+     let p = List.combine l p in
      let e = eval p (e $ encode [] (explode s)) in
      decode p e
 
 let () =
+  (*
   let ic = open_in "comb" in
   let s = really_input_string ic (in_channel_length ic) in
   print_endline (vm (explode s));
-  (*
+   *)
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   let rec clist l c =
@@ -345,4 +349,3 @@ let () =
         *)
   in
   clist p p
-   *)

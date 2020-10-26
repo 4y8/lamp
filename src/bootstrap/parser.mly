@@ -2,9 +2,10 @@
     open Gram
 %}
 
-%token SEMI EQU LAM LPAR RPAR ARR EOF
+%token SEMI EQU LAM LPAR RPAR ARR EOF RBRACK LBRACK
+%token <char list> STR
 %token <char> CHAR
-%token <string> OP 
+%token <string> OP
 %token <string> IDE
 
 %left OP
@@ -35,13 +36,21 @@ app:
 non_app:
   | IDE               { Var $1 }
   | CHAR              { Chr $1 }
+  | STR               { string_list $1 }
   | LPAR OP RPAR      { Var $2 }
   | LPAR expr RPAR    { $2 }
 ;
 
 expr:
-  | non_app           { $1 }
-  | app               { $1 }
-  | op_expr           { $1 }
-  | LAM IDE* ARR expr { mklam $4 $2 }
+  | non_app            { $1 }
+  | app                { $1 }
+  | op_expr            { $1 }
+  | LBRACK RBRACK      { Var "K" }
+  | LAM IDE* ARR expr  { mklam $4 $2 }
+  | LBRACK brlist RBRACK { list_list $2 }
+;
+
+brlist:
+  | expr { [$1] }
+  | brlist SEMI expr { $1 @ [$3]}
 ;
