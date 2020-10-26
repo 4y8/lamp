@@ -113,7 +113,7 @@ Abs e   = \_ _ _ d _ -> d e;
 deb e v n =
   e
     (const (Pass e))
-    (\v' -> (cmp_list v v') n e)
+    (\v' -> (cmp_list v v') n (Pass e))
     (\l r -> (deb l v n) # (deb r v n))
     (\v' b -> Abs (deb (deb b v' Zero) v (Succ n)));
 
@@ -163,12 +163,12 @@ babsa l r =
 
 ($$) = babsa;
 
-nbabs e =
+babs e =
   e
     (Need (Closed (Com "I")))
-    (Weak . nbabs)
+    (Weak . babs)
     Closed
-    (\e -> (nbabs e)
+    (\e -> (babs e)
       (\d -> Closed ((Com "K") @ d))
       id
       (babsa (Closed (Com "K")))
@@ -252,15 +252,15 @@ listP = lst
      *> (sepBy (blank (char ';')) expr
     <*  char ']'));
 
-varP  = (\v -> is_comb v combinators (Com v) (Var v)) <$> name;
-opP   = char '(' *> (Var <$> blank opp <* char ')');
+varP  = (\v -> is_comb v combinators (Com v) (Var v))
+    <$> (name
+    <|> (char '(' *> blank opp <* char ')'));
 atomP = parentP
     <|> (charP
     <|> (varP
     <|> (lambdaP
     <|> (stringP
-    <|> (listP
-    <|> opP)))));
+    <|> (listP)))));
 appP  = chainl1 (blank (pure App)) atomP;
 expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
 
@@ -352,13 +352,6 @@ abs v e =
     undefined;
 
 
-babs e =
-  e
-    Com
-    Var
-    (\l r -> (babs l) @ (babs r))
-    (\v b -> abs v (babs b));
-
 subst e l = e
 	       Com
 	       (\v ->
@@ -370,7 +363,9 @@ smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
 main = (foldr (\l l' -> l ++ (';' : l')) Nil .
 	map (show . snd) .
-	(\l -> smap (flip subst l . babs) l) .
+	(\l -> smap (flip subst l .
+	            (\x -> x I undefined undefined undefined) .
+        babs . (\x -> deb x "" Zero)) l) .
 	fst .
 	get .
 	many (blank top_level));

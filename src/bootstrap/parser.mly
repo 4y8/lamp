@@ -39,15 +39,15 @@ non_app:
   | STR               { string_list $1 }
   | LPAR OP RPAR      { Var $2 }
   | LPAR expr RPAR    { $2 }
+  | LBRACK RBRACK      { Var "K" }
+  | LBRACK brlist RBRACK { list_list $2 }
 ;
 
 expr:
   | non_app            { $1 }
   | app                { $1 }
   | op_expr            { $1 }
-  | LBRACK RBRACK      { Var "K" }
   | LAM IDE* ARR expr  { mklam $4 $2 }
-  | LBRACK brlist RBRACK { list_list $2 }
 ;
 
 brlist:
