@@ -44,7 +44,7 @@ let rec expr =
 let ($) l r = App (l, r)
 
 let combinators =
-  ["K"; "I"; "B"; "B*"; "C"; "C'"; "S"; "S'"; "E"; "L"; "+"; "-"; ":"]
+  ["K"; "I"; "B"; "C"; "S"; "E"; "L"; "+"; "-"; ":"]
 
 let rec last =
   function
@@ -182,7 +182,7 @@ let rec eval c =
      if l = l'
      then e
      else eval c e
-  | Loc n -> snd (c.(n - 32))
+  | Loc n -> c.(n - 32)
   | e -> e
 
 let rec find v =
@@ -312,15 +312,12 @@ let vm s =
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
-     let l = List.map (Fun.const "") p in
      let e = last p in
-     let p = List.combine l p in
      let p = Array.of_list p in
      let e = eval p (e $ encode [] (explode s)) in
      decode p e
 
 let () =
-
   let ic = open_in "comb" in
   let s = really_input_string ic (in_channel_length ic) in
   print_endline (vm (explode s));

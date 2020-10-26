@@ -1,5 +1,4 @@
 undefined = I;
-
 id = I;
 const = K;
 flip = C;
@@ -55,6 +54,15 @@ cmp_list l l' =
 
 last l = l undefined (\h t -> t h (\_ _ -> last t));
 
+inc n = n + '!' - ' ';
+find_list a l =
+  l
+    undefined
+    (\h t ->
+      (cmp_list (fst h) a)
+	(' ' - ' ')
+	(inc (find_list a t)));
+
 pure x inp = Just (x, inp);
 fail = const Nothing;
 bind f m = m Nothing (\x -> x f);
@@ -91,6 +99,35 @@ Lam v b = \_ _ _ d -> d v b;
 
 (@) = App;
 
+-- data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | (#) Deb Deb
+Zero    = \a _ _ _ _ -> a;
+Succ n  = \_ b _ _ _ -> b n;
+Pass e  = \_ _ c _ _ -> c e;
+Abs e   = \_ _ _ d _ -> d e;
+(#) l r = \_ _ _ _ e -> e l r;
+
+deb e v n =
+  e
+    (const (Pass e))
+    (\v' -> (cmp_list v v') n e)
+    (\l r -> (deb l v n) # (deb r v n))
+    (\v' b -> Abs (deb (deb b v' Zero) v (Succ n)));
+
+Closed e = \a _ _ _ -> a e;
+Need e   = \_ b _ _ -> b e;
+Weak e   = \_ _ c _ -> c e;
+Variable = \_ _ _ d -> d;
+
+nbabs e =
+  e
+    (Need (Closed (Com "I")))
+    (Weak . nbabs)
+    Closed
+    (\e -> (nbabs e)
+      id
+      (Com "I"))
+    ;
+
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
 char c = sat ((==) c);
@@ -113,9 +150,9 @@ blank p = many nul
        *> p
       <*  many nul;
 
-operators = ":=|+-,.&<*>$@";
+operators = ":=|+-,.&<*>$@#!";
 
-op = choice (map char operators);
+op = char ':' <|> (char '=' <|> (char '|' <|> (char '+' <|> (char '-' <|> (char ',' <|> (char '.' <|> (char '&' <|> (char '<' <|> (char '*' <|> (char '>' <|> (char '$' <|> (char '@' <|> (char '#' <|> char '!'))))))))))))); -- choice (map char operators);
 opp = many op;
 
 parentP = char '(' *> blank expr <* char ')';
@@ -247,7 +284,6 @@ abs v e =
     (\l r -> optimize (Var "S" @ abs v l @ abs v r))
     undefined;
 
-inc n = n + '!' - ' ';
 
 babs e =
   e
@@ -255,14 +291,6 @@ babs e =
     Var
     (\l r -> (babs l) @ (babs r))
     (\v b -> abs v (babs b));
-
-find_list a l =
-  l
-    undefined
-    (\h t ->
-      (cmp_list (fst h) a)
-	(' ' - ' ')
-	(inc (find_list a t)));
 
 combinators = "SICKBEL+-:";
 
