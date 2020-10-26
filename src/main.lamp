@@ -118,15 +118,58 @@ Need e   = \_ b _ _ -> b e;
 Weak e   = \_ _ c _ -> c e;
 Variable = \_ _ _ d -> d;
 
+babsClosed d r =
+  r
+    (\d' -> Closed (d @ d'))
+    (\e  -> Need (Closed (Com "B" @ d) $$ e))
+    (\e  -> Weak (Closed d $$ e))
+    (Need (Closed d))
+  ;
+
+babsNeed e r =
+  r
+    (\d  -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e))
+    (\e' -> Need (Closed (Com "S") $$ e $$ e'))
+    (\e' -> Need (Closed (Com "C") $$ e $$ e'))
+    (Closed (Com "S") $$ e $$ Closed (Com "I"))
+  ;
+
+babsWeak e r =
+  r
+    (\d  -> Weak (e $$ r))
+    (\e' -> Need (Closed (Com "B") $$ e $$ e'))
+    (\e' -> Weak (e $$ e'))
+    (Need e)
+  ;
+
+babsVariable r =
+  r
+    (\d -> Need (Closed (Com "C" @ Com "I" @ d)))
+    (\e -> Need (Closed (Com "S" @ Com "I") @ e))
+    (\e -> Need (Closed (Com "C" @ Com "I") $$ e))
+    undefined
+  ;
+
+babsa l r =
+  l
+    (flip babsClosed r)
+    (flip babsNeed r)
+    (flip babsWeak r)
+    (babsVariable r);
+
+($$) = babsa;
+
 nbabs e =
   e
     (Need (Closed (Com "I")))
     (Weak . nbabs)
     Closed
     (\e -> (nbabs e)
+      (\d -> Closed ((Com "K") @ d))
       id
+      (babsa (Closed (Com "K")))
       (Com "I"))
-    ;
+    (\l r -> babsa (babs l) (babs r));
 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
@@ -152,7 +195,20 @@ blank p = many nul
 
 operators = ":=|+-,.&<*>$@#!";
 
-op = char ':' <|> (char '=' <|> (char '|' <|> (char '+' <|> (char '-' <|> (char ',' <|> (char '.' <|> (char '&' <|> (char '<' <|> (char '*' <|> (char '>' <|> (char '$' <|> (char '@' <|> (char '#' <|> char '!'))))))))))))); -- choice (map char operators);
+op = char ':' <|>
+    (char '=' <|>
+    (char '|' <|>
+    (char '+' <|>
+    (char '-' <|>
+    (char ',' <|>
+    (char '.' <|>
+    (char '&' <|>
+    (char '<' <|>
+    (char '*' <|>
+    (char '>' <|>
+    (char '$' <|>
+    (char '@' <|>
+    (char '#'))))))))))))); -- choice (map char operators);
 opp = many op;
 
 parentP = char '(' *> blank expr <* char ')';
