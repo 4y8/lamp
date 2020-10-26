@@ -108,7 +108,7 @@ Zero    = \a _ _ _ _ -> a;
 Succ n  = \_ b _ _ _ -> b n;
 Pass e  = \_ _ c _ _ -> c e;
 Abs e   = \_ _ _ d _ -> d e;
-(#) l r = \_ _ _ _ e -> e l r;
+($#) l r = \_ _ _ _ e -> e l r;
 
 show_deb e =
   e
@@ -116,7 +116,7 @@ show_deb e =
     (\n -> "S(" ++ show_deb n ++ ")")
     show
     (\e -> "abs (" ++ show_deb e ++ ")")
-    (\l r -> "(" ++ show_deb l ++ " " ++ show_deb l ++ ")")
+    (\l r -> "(" ++ show_deb l ++ " " ++ show_deb r ++ ")")
   ;
 
 zero = ' ' - ' ';
@@ -128,7 +128,7 @@ deb e env =
   e
     (const (Pass e))
     (\v -> find env v (Pass e) Zero)
-    (\l r -> (deb l env) # (deb r env))
+    (\l r -> deb l env $# deb r env)
     (\v b -> Abs (deb b (v : env)))
   ;
 
@@ -174,7 +174,8 @@ babsa l r =
     (flip babsClosed r)
     (flip babsNeed r)
     (flip babsWeak r)
-    (babsVariable r);
+    (babsVariable r)
+  ;
 
 ($$) = babsa;
 
@@ -302,71 +303,6 @@ show e =
     (\l r -> '`' : show l ++ show r)
     (\v b -> '\': (v ++ ('.' : show b)));
 
-app e f def = e (const def) (const def) f (\_ _ -> def);
-
-com e v f def =
-  e
-    (\v' -> (cmp_list (v : Nil) v') f def)
-    (const def)
-    (\_ _ -> def)
-    (\_ _ -> def);
-
-bopt p q = Com "B" @ p @ q;
-kopt s p q l r = com
-		   l
-		   'K'
-		   (Com "K" @ (q @ r))
-		   (bopt q s);
-
-copt e s p =
-  app
-    s
-    (\l q ->
-      com
-	l
-	'K'
-	(Com "C" @ p @ q)
-	e)
-    e;
-
-svopt e s p l q = com
-		    l
-		    'K'
-		    (s
-		       (\v -> (cmp_list "I" v) q (bopt q s))
-		       (const (bopt q s))
-		       (kopt s p q)
-		       (\_ _ -> bopt q s))
-		    e;
-
-optimize e =
-  app
-    e
-    (\l s ->
-      app
-	l
-	(\l' p ->
-	  com
-	    l'
-	    'S'
-	    (app
-	      p
-	      (svopt e s p)
-	      (copt e s p))
-	    e)
-	e)
-    e;
-
-abs v e =
-  e
-    (\_ -> Com "K" @ e)
-    (\v' -> (cmp_list v' v)
-	    (Com "I")
-	    (Com "K" @ e))
-    (\l r -> optimize (Com "S" @ abs v l @ abs v r))
-    undefined;
-
-
 subst e l = e
 	       Com
 	       (\v ->
@@ -376,19 +312,11 @@ subst e l = e
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
---main = (foldr (\l l' -> l ++ (';' : l')) Nil .
---	map (show . snd) .
---	(\l -> smap (flip subst l .
---	            (\x -> x I undefined undefined undefined) .
---        babs . (\x -> deb x "" Zero)) l) .
---	fst .
---	get .
---	many (blank top_level));
-
-main = show .
-       (\x -> x I undefined undefined undefined) .
-       babs .
-       (\x -> deb x []) .
-       fst .
-       get .
-       expr;
+main = (foldr (\l l' -> l ++ (';' : l')) Nil .
+	map (show . snd) .
+	(\l -> smap (flip subst l .
+	            (\x -> x I undefined undefined undefined) .
+        babs . (\x -> deb x [])) l) .
+	fst .
+	get .
+	many (blank top_level));
