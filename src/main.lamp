@@ -110,18 +110,6 @@ Pass e  = \_ _ c _ _ -> c e;
 Abs e   = \_ _ _ d _ -> d e;
 ($#) l r = \_ _ _ _ e -> e l r;
 
-show_deb e =
-  e
-    "Z"
-    (\n -> "S(" ++ show_deb n ++ ")")
-    show
-    (\e -> "abs (" ++ show_deb e ++ ")")
-    (\l r -> "(" ++ show_deb l ++ " " ++ show_deb r ++ ")")
-  ;
-
-zero = ' ' - ' ';
-succ n = n + '!' - ' ';
-
 find l v def acc = l def (\h t -> (cmp_list h v) acc (find t v def (Succ acc)));
 
 deb e env =
@@ -150,12 +138,12 @@ babsNeed e r =
     (\d  -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e))
     (\e' -> Need (Closed (Com "S") $$ e $$ e'))
     (\e' -> Need (Closed (Com "C") $$ e $$ e'))
-    (Closed (Com "S") $$ e $$ Closed (Com "I"))
+    (Need (Closed (Com "S") $$ e $$ Closed (Com "I")))
   ;
 
 babsWeak e r =
   r
-    (\d  -> Weak (e $$ r))
+    (\d  -> Weak (e $$ Closed d))
     (\e' -> Need (Closed (Com "B") $$ e $$ e'))
     (\e' -> Weak (e $$ e'))
     (Need e)
@@ -164,9 +152,9 @@ babsWeak e r =
 babsVariable r =
   r
     (\d -> Need (Closed (Com "C" @ Com "I" @ d)))
-    (\e -> Need (Closed (Com "S" @ Com "I") @ e))
+    (\e -> Need (Closed (Com "S" @ Com "I") $$ e))
     (\e -> Need (Closed (Com "C" @ Com "I") $$ e))
-    undefined
+    (Need (Closed (Com "S" @ Com "I" @ Com "I")))
   ;
 
 babsa l r =
@@ -185,7 +173,7 @@ babs e =
     (Weak . babs)
     Closed
     (\e -> (babs e)
-      (\d -> Closed ((Com "K") @ d))
+      (\d -> Closed (Com "K" @ d))
       id
       (babsa (Closed (Com "K")))
       (Closed (Com "I")))
@@ -250,8 +238,8 @@ charP = char '''
     <*  char ''');
 
 str l = l
-	  (Var "K")
-	  (\h t -> Var ":" @ chr h @ str t);
+	  (Com "K")
+	  (\h t -> Com ":" @ chr h @ str t);
 
 dquote = '"'; --"
 
@@ -260,8 +248,8 @@ stringP = char dquote
       <*  char dquote);
 
 lst l = l
-	 (Var "K")
-	 (\h t -> Var ":" @ h @ lst t);
+	 (Com "K")
+	 (\h t -> Com ":" @ h @ lst t);
 
 listP = lst
     <$> (char '['
@@ -278,7 +266,9 @@ atomP = parentP
     <|> (stringP
     <|> (listP)))));
 appP  = chainl1 (blank (pure App)) atomP;
-expr  = chainl1 ((\x y z -> Var x @ y @ z) <$> blank opp) appP;
+expr  = chainl1 ((\x y z ->
+                  (is_comb x combinators (Com x) (Var x)) @ y @ z)
+		<$> blank opp) appP;
 
 wrap_lam e l =
   l
@@ -316,7 +306,7 @@ main = (foldr (\l l' -> l ++ (';' : l')) Nil .
 	map (show . snd) .
 	(\l -> smap (flip subst l .
 	            (\x -> x I undefined undefined undefined) .
-        babs . (\x -> deb x [])) l) .
+                    babs . (\x -> deb x [])) l) .
 	fst .
 	get .
 	many (blank top_level));

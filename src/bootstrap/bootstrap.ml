@@ -309,12 +309,12 @@ let vm s =
   match l with
     None -> failwith "Syntax error"
   | Some (p, _) ->
-     (*
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
-      *)
+     (*
      let s = read_line () in
+      *)
      let e = last p in
      let l = List.map (Fun.const "") p in
      let p = List.combine l p in
@@ -322,11 +322,10 @@ let vm s =
      decode p e
 
 let () =
-  (*
   let ic = open_in "comb" in
   let s = really_input_string ic (in_channel_length ic) in
   print_endline (vm (explode s));
-   *)
+  (*
   let ic = open_in "../main.lamp" in
   let p  = Parser.program Lexer.lex (Lexing.from_channel ic) in
   let rec clist l c =
@@ -334,15 +333,15 @@ let () =
       [] -> ()
     | ("main", e) :: _ ->
        (*
+       let ic = open_in "../prelude.lamp" in
+        *)
        seek_in ic 0;
        let prelude = really_input_string ic (in_channel_length ic) in
-        *)
-       print_string "> ";
-       let s = encode c (explode (read_line ())) in
+       let s = encode c (explode (prelude)) in
        let e = brack (to_deb e "#" (-1)) in
        let s = decode c (eval c (e $ s)) in
        print_endline s;
-    (*print_endline (vm (explode s))*)
+       (*print_endline (vm (explode s)) *)
     | (f, s) :: tl ->
        clist tl ((f, brack (to_deb s "#" (-1))) :: c)
        (*
@@ -353,3 +352,4 @@ let () =
         *)
   in
   clist p p
+   *)
