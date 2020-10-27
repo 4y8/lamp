@@ -9,13 +9,16 @@ False = \_ y -> y;
 
 (||) f g x y = f x (g x y);
 (&&) f g x y = f (g x y) y;
+not f = f False True;
 
 (==) = E;
 (<=) = L;
+(<>) x y = not (x == y);
+(>=) x y = not (x <= y);
 
-(,) x y     = \f -> f x y;
-fst x = x const;
-snd x = x (\_ s -> s);
+(,) x y = \f -> f x y;
+fst x   = x const;
+snd x   = x (\_ s -> s);
 
 Nothing = K;
 Just x  = \_ g -> g x;
@@ -60,8 +63,10 @@ find_list a l =
     undefined
     (\h t ->
       (cmp_list (fst h) a)
-        0
+	0
 	(find_list a t + 1));
+
+length = foldr (\_ -> (+) 1) 0
 
 int_of_string = foldl (\a b -> a * 10 + b - '0') 0;
 
@@ -77,7 +82,9 @@ bind f m = m Nothing (\x -> x f);
 (<*>) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q t)) (p inp);
 (<*>|) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q I t)) (p inp);
 (<|>) p q = \inp -> (p inp) (q inp) Just;
+
 (<$>) f p = pure f <*> p;
+
 (<$) f p = const <$> pure f <*> p;
 (<*) p q = const <$> p      <*> q;
 (*>) p q = id    <$  p      <*> q;
@@ -120,8 +127,8 @@ nul = space
   <|> (newline
   <|> (char '-'
    <*  (char '-'
-    *> many (sat (\x -> (x == '
-') False True))))));
+    *> many (sat (\x -> x <> '
+'))))));
 
 blank p = many nul
        *> p
@@ -142,7 +149,8 @@ op = char ':' <|>
     (char '>' <|>
     (char '$' <|>
     (char '@' <|>
-    (char '#'))))))))))))); -- choice (map char operators);
+    (char '#' <|>
+    (char '!')))))))))))))); -- choice (map char operators);
 opp = many op;
 
 parentP = char '(' *> blank expr <* char ')';
@@ -157,7 +165,7 @@ lambdaP = (char '\'
        *> (many nul
        *> expr)))));
 
-chr c = Com ('#' : (c : Nil));
+chr c = Com ['#'; c];
 
 charP = char '''
      *> ((chr <$> any)
@@ -170,7 +178,7 @@ str l = l
 dquote = '"'; --"
 
 stringP = char dquote
-       *> ((str <$> many (sat (\x -> (x == dquote) False True)))
+       *> ((str <$> many (sat (\x -> x <> dquote)))
       <*  char dquote);
 
 lst l = l
@@ -185,9 +193,9 @@ listP = lst
 numberP = ((\x -> Com ['#'; x]) . int_of_string)
       <$> many1 digit;
 
-varP  = (\v -> is_comb v combinators (Com v) (Var v))
-    <$> (name
-    <|> (char '(' *> blank opp <* char ')'));
+varP = (\v -> is_comb v combinators (Com v) (Var v))
+   <$> (name
+   <|> (char '(' *> blank opp <* char ')'));
 
 atomP = parentP
     <|> (charP
@@ -197,10 +205,10 @@ atomP = parentP
     <|> (listP
     <|> (numberP))))));
 
-appP  = chainl1 (blank (pure App)) atomP;
+appP = chainl1 (blank (pure App)) atomP;
 
-expr  = chainl1 ((\x y z ->
-                  (is_comb x combinators (Com x) (Var x)) @ y @ z)
+expr = chainl1 ((\x y z ->
+		(is_comb x combinators (Com x) (Var x)) @ y @ z)
 		<$> blank opp) appP;
 
 wrap_lam e l =
@@ -322,8 +330,8 @@ show e =
 main = (foldr (\l l' -> l ++ (';' : l')) [] .
 	map (show . snd) .
 	(\l -> smap (flip subst l .
-	            (\x -> x I undefined undefined undefined) .
-                    babs . (\x -> deb x [])) l) .
+		    (\x -> x I undefined undefined undefined) .
+		    babs . (\x -> deb x [])) l) .
 	foldr (++) [] .
 	fst .
 	get .

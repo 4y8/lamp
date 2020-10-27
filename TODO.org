@@ -8,8 +8,12 @@
 ** TODO Simple patterns
 ** TODO Nested patterns
 ** TODO Guards
+* TODO Type system
+** TODO Hindley-Milner type inference
+** TODO Type classes
 * TODO (Possibly monadic) I/O
 * TODO Module system
+* TODO Indentation based parsing
 * TODO List comprehension
 * TODO GADTs
 * TODO More optimizations
