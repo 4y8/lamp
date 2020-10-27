@@ -1,15 +1,18 @@
 * DONE finish bootstraping
 * DONE List sugar
+* TODO Numbers
+* TODO Operator precedence
 * TODO Where clauses
 * TODO Pattern matching
 ** TODO ADTs
-** TODO simple patterns
-** TODO nested patterns
+** TODO Simple patterns
+** TODO Nested patterns
+** TODO Guards
 * TODO (Possibly monadic) I/O
 * TODO Module system
 * TODO List comprehension
 * TODO GADTs
 * TODO More optimizations
 ** TODO C vm
-** TODO Oleg ski
+** DONE Oleg ski
 * TODO G-Machine backend

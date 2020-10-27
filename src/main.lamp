@@ -63,6 +63,8 @@ find_list a l =
 	(' ' - ' ')
 	(inc (find_list a t)));
 
+-- Parser ----------------------------------------------------------------------
+
 combinators = "SICKBEL+-:";
 
 is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
@@ -100,84 +102,6 @@ Com c   = \a _ _ _ -> a c;
 Var v   = \_ b _ _ -> b v;
 App l r = \_ _ c _ -> c l r;
 Lam v b = \_ _ _ d -> d v b;
-
-(@) = App;
-
--- data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | (#) Deb Deb
-Zero    = \a _ _ _ _ -> a;
-Succ n  = \_ b _ _ _ -> b n;
-Pass e  = \_ _ c _ _ -> c e;
-Abs e   = \_ _ _ d _ -> d e;
-($#) l r = \_ _ _ _ e -> e l r;
-
-find l v def acc = l def (\h t -> (cmp_list h v) acc (find t v def (Succ acc)));
-
-deb e env =
-  e
-    (const (Pass e))
-    (\v -> find env v (Pass e) Zero)
-    (\l r -> deb l env $# deb r env)
-    (\v b -> Abs (deb b (v : env)))
-  ;
-
-Closed e = \a _ _ _ -> a e;
-Need e   = \_ b _ _ -> b e;
-Weak e   = \_ _ c _ -> c e;
-Variable = \_ _ _ d -> d;
-
-babsClosed d r =
-  r
-    (\d' -> Closed (d @ d'))
-    (\e  -> Need (Closed (Com "B" @ d) $$ e))
-    (\e  -> Weak (Closed d $$ e))
-    (Need (Closed d))
-  ;
-
-babsNeed e r =
-  r
-    (\d  -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e))
-    (\e' -> Need (Closed (Com "S") $$ e $$ e'))
-    (\e' -> Need (Closed (Com "C") $$ e $$ e'))
-    (Need (Closed (Com "S") $$ e $$ Closed (Com "I")))
-  ;
-
-babsWeak e r =
-  r
-    (\d  -> Weak (e $$ Closed d))
-    (\e' -> Need (Closed (Com "B") $$ e $$ e'))
-    (\e' -> Weak (e $$ e'))
-    (Need e)
-  ;
-
-babsVariable r =
-  r
-    (\d -> Need (Closed (Com "C" @ Com "I" @ d)))
-    (\e -> Need (Closed (Com "S" @ Com "I") $$ e))
-    (\e -> Need (Closed (Com "C" @ Com "I") $$ e))
-    (Need (Closed (Com "S" @ Com "I" @ Com "I")))
-  ;
-
-babsa l r =
-  l
-    (flip babsClosed r)
-    (flip babsNeed r)
-    (flip babsWeak r)
-    (babsVariable r)
-  ;
-
-($$) = babsa;
-
-babs e =
-  e
-    Variable
-    (Weak . babs)
-    Closed
-    (\e -> (babs e)
-      (\d -> Closed (Com "K" @ d))
-      id
-      (babsa (Closed (Com "K")))
-      (Closed (Com "I")))
-    (\l r -> (babs l) $$ (babs r));
 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
@@ -256,16 +180,22 @@ listP = lst
      *> (sepBy (blank (char ';')) expr
     <*  char ']'));
 
+numberP = int_of_string
+      <$> many1 digit;
+
 varP  = (\v -> is_comb v combinators (Com v) (Var v))
     <$> (name
     <|> (char '(' *> blank opp <* char ')'));
+
 atomP = parentP
     <|> (charP
     <|> (varP
     <|> (lambdaP
     <|> (stringP
     <|> (listP)))));
+
 appP  = chainl1 (blank (pure App)) atomP;
+
 expr  = chainl1 ((\x y z ->
                   (is_comb x combinators (Com x) (Var x)) @ y @ z)
 		<$> blank opp) appP;
@@ -281,17 +211,92 @@ equal = (flip wrap_lam . reverse)
     <*  blank (char '=')
     <*> expr;
 
-top_level = (,)
+top_level = (\f s -> [f, s])
 	<$> (name <|> (char '(' *> blank opp <* char ')'))
 	<*> blank equal
 	<*  char ';';
 
-show e =
+--------------------------------------------------------------------------------
+
+-- Bracket abstraction ---------------------------------------------------------
+
+-- data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | (#) Deb Deb
+Zero    = \a _ _ _ _ -> a;
+Succ n  = \_ b _ _ _ -> b n;
+Pass e  = \_ _ c _ _ -> c e;
+Abs e   = \_ _ _ d _ -> d e;
+($#) l r = \_ _ _ _ e -> e l r;
+
+find l v def acc = l def (\h t -> (cmp_list h v) acc (find t v def (Succ acc)));
+
+deb e env =
   e
-    id
-    id
-    (\l r -> '`' : show l ++ show r)
-    (\v b -> '\': (v ++ ('.' : show b)));
+    (const (Pass e))
+    (\v -> find env v (Pass e) Zero)
+    (\l r -> deb l env $# deb r env)
+    (\v b -> Abs (deb b (v : env)))
+  ;
+
+Closed e = \a _ _ _ -> a e;
+Need e   = \_ b _ _ -> b e;
+Weak e   = \_ _ c _ -> c e;
+Variable = \_ _ _ d -> d;
+
+babsClosed d r =
+  r
+    (\d' -> Closed (d @ d'))
+    (\e  -> Need (Closed (Com "B" @ d) $$ e))
+    (\e  -> Weak (Closed d $$ e))
+    (Need (Closed d))
+  ;
+
+babsNeed e r =
+  r
+    (\d  -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e))
+    (\e' -> Need (Closed (Com "S") $$ e $$ e'))
+    (\e' -> Need (Closed (Com "C") $$ e $$ e'))
+    (Need (Closed (Com "S") $$ e $$ Closed (Com "I")))
+  ;
+
+babsWeak e r =
+  r
+    (\d  -> Weak (e $$ Closed d))
+    (\e' -> Need (Closed (Com "B") $$ e $$ e'))
+    (\e' -> Weak (e $$ e'))
+    (Need e)
+  ;
+
+babsVariable r =
+  r
+    (\d -> Need (Closed (Com "C" @ Com "I" @ d)))
+    (\e -> Need (Closed (Com "S" @ Com "I") $$ e))
+    (\e -> Need (Closed (Com "C" @ Com "I") $$ e))
+    (Need (Closed (Com "S" @ Com "I" @ Com "I")))
+  ;
+
+babsa l r =
+  l
+    (flip babsClosed r)
+    (flip babsNeed r)
+    (flip babsWeak r)
+    (babsVariable r)
+  ;
+
+($$) = babsa;
+
+babs e =
+  e
+    Variable
+    (Weak . babs)
+    Closed
+    (\e -> (babs e)
+      (\d -> Closed (Com "K" @ d))
+      id
+      (babsa (Closed (Com "K")))
+      (Closed (Com "I")))
+    (\l r -> (babs l) $$ (babs r));
+
+--------------------------------------------------------------------------------
 
 subst e l = e
 	       Com
@@ -302,11 +307,21 @@ subst e l = e
 
 smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
 
-main = (foldr (\l l' -> l ++ (';' : l')) Nil .
+show e =
+  e
+    id
+    id
+    (\l r -> '`' : show l ++ show r)
+    (\v b -> '\': (v ++ ('.' : show b)));
+
+(@) = App;
+
+main = (foldr (\l l' -> l ++ (';' : l')) [] .
 	map (show . snd) .
 	(\l -> smap (flip subst l .
 	            (\x -> x I undefined undefined undefined) .
                     babs . (\x -> deb x [])) l) .
+	foldr (++) [] .
 	fst .
 	get .
 	many (blank top_level));
