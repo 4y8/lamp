@@ -2,7 +2,7 @@ type expr
   = Lam of string * expr
   | Var of string
   | App of expr * expr
-  | Chr of char
+  | Chr of int
   | Deb of int
   | Loc of int
 [@@deriving show]
@@ -16,7 +16,7 @@ let op l op r =
 
 let rec string_list =
   function [] -> Var "K"
-         | c :: tl -> App (App (Var ":", Chr c), string_list tl)
+         | c :: tl -> App (App (Var ":", Chr (int_of_char c)), string_list tl)
 
 let rec list_list =
   function [] -> Var "K"

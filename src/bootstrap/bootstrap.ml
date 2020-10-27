@@ -27,7 +27,8 @@ let combs =
    '-', Var "-";
    'E', Var "E";
    'L', Var "L";
-   ':', Var ":"
+   ':', Var ":";
+   '*', Var "*"
   ]
 
 let revcombs =
@@ -39,12 +40,12 @@ let rec expr =
            ((choice (List.map (fun (x, y) -> return y <* char x) combs))
        <|> ((fun l r -> App (l, r)) <$ char '`' <*> expr <*> expr)
        <|> ((fun i -> Loc i) <$ char '@' <*> (int_of_char <$> any))
-       <|> ((fun c -> Chr c) <$ char '#' <*> any)) s
+       <|> ((fun c -> Chr c) <$ char '#' <*> (int_of_char <$> any))) s
 
 let ($) l r = App (l, r)
 
 let combinators =
-  ["K"; "I"; "B"; "C"; "S"; "E"; "L"; "+"; "-"; ":"]
+  ["K"; "I"; "B"; "C"; "S"; "E"; "L"; "+"; "-"; ":"; "*"]
 
 let rec last =
   function
@@ -94,7 +95,7 @@ let rec print_expr =
     Var v -> v
   | App (l, r) -> (String.make 1 '`') ^ (print_expr l) ^ (print_expr r)
   | Loc n -> inplode ['@'; char_of_int (n + 32)]
-  | Chr c -> inplode ['#'; c]
+  | Chr c -> inplode ['#'; char_of_int c]
   | _ -> raise Not_found
 
 (*
@@ -145,7 +146,7 @@ let rec eval c =
      begin
        match l', r' with
          Chr c, Chr c' ->
-          Chr (char_of_int ((int_of_char c) + (int_of_char c')))
+          Chr (c + c')
        | _ -> e
      end
   | App (App (Var "-", l), r) as e ->
@@ -154,7 +155,16 @@ let rec eval c =
      begin
        match l', r' with
          Chr c, Chr c' ->
-          Chr (char_of_int ((int_of_char c) - (int_of_char c')))
+          Chr (c - c')
+       | _ -> e
+     end
+  | App (App (Var "*", l), r) as e ->
+     let l' = eval c l in
+     let r' = eval c r in
+     begin
+       match l', r' with
+         Chr c, Chr c' ->
+          Chr (c * c')
        | _ -> e
      end
   | App (App (App (App (Var ":", s), p), _), q) ->
@@ -291,7 +301,7 @@ let rec decode_asm c e =
 let rec encode c =
   function
   [] -> Var "K"
-| hd :: tl -> (Var ":" $ Chr hd $ (encode c tl))
+| hd :: tl -> (Var ":" $ Chr (int_of_char hd) $ (encode c tl))
 
 let rec decode c e =
   match eval c e with
@@ -299,7 +309,7 @@ let rec decode c e =
   | App (App (Var ":", h), t) ->
      begin
        match eval c h with
-         Chr c' -> (String.make 1 c') ^ (decode c t)
+         Chr c' -> (String.make 1 (char_of_int c')) ^ (decode c t)
        | _ -> failwith "Bad string"
      end
   | _ -> failwith "Bad string"
@@ -313,6 +323,7 @@ let vm s =
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
      (*
+     print_string "> ";
      let s = read_line () in
       *)
      let e = last p in

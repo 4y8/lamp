@@ -36,6 +36,7 @@ reverse l =
 map f l = l Nil (\h t -> f h : map f t);
 
 foldr f acc l = l acc (\h t -> f h (foldr f acc t));
+foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
 
 head l = l undefined (\h _ -> h);
 tail l = l undefined (\_ t -> t);
@@ -54,18 +55,19 @@ cmp_list l l' =
 
 last l = l undefined (\h t -> t h (\_ _ -> last t));
 
-inc n = n + '!' - ' ';
 find_list a l =
   l
     undefined
     (\h t ->
       (cmp_list (fst h) a)
-	(' ' - ' ')
-	(inc (find_list a t)));
+        0
+	(find_list a t + 1));
+
+int_of_string = foldl (\a b -> a * 10 + b - '0') 0;
 
 -- Parser ----------------------------------------------------------------------
 
-combinators = "SICKBEL+-:";
+combinators = "SICKBEL+-:*";
 
 is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
 
@@ -180,7 +182,7 @@ listP = lst
      *> (sepBy (blank (char ';')) expr
     <*  char ']'));
 
-numberP = int_of_string
+numberP = ((\x -> Com ['#'; x]) . int_of_string)
       <$> many1 digit;
 
 varP  = (\v -> is_comb v combinators (Com v) (Var v))
@@ -192,7 +194,8 @@ atomP = parentP
     <|> (varP
     <|> (lambdaP
     <|> (stringP
-    <|> (listP)))));
+    <|> (listP
+    <|> (numberP))))));
 
 appP  = chainl1 (blank (pure App)) atomP;
 
@@ -301,7 +304,7 @@ babs e =
 subst e l = e
 	       Com
 	       (\v ->
-		  (Com ('@' : ((' ' + find_list v l) : Nil))))
+		  (Com ('@' : ((32 + find_list v l) : Nil))))
 	       (\p q -> subst p l @ subst q l)
 	       (\v b -> Lam v (subst b l));
 

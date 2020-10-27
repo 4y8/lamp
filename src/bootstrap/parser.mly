@@ -35,7 +35,7 @@ app:
 
 non_app:
   | IDE               { Var $1 }
-  | CHAR              { Chr $1 }
+  | CHAR              { Chr (int_of_char $1) }
   | STR               { string_list $1 }
   | LPAR OP RPAR      { Var $2 }
   | LPAR expr RPAR    { $2 }

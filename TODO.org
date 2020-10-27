@@ -1,6 +1,6 @@
 * DONE finish bootstraping
 * DONE List sugar
-* TODO Numbers
+* DONE Numbers
 * TODO Operator precedence
 * TODO Where clauses
 * TODO Pattern matching
