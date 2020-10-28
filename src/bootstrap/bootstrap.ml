@@ -192,7 +192,7 @@ let rec eval c =
      if l = l'
      then e
      else eval c e
-  | Loc n -> snd (List.nth c (n - 32))
+  | Loc n -> snd (List.nth c n)
   | e -> e
 
 let rec find v =
@@ -319,13 +319,13 @@ let vm s =
   match l with
     None -> failwith "Syntax error"
   | Some (p, _) ->
+     (*
      let ic = open_in "../main.lamp" in
      seek_in ic 0;
      let s = really_input_string ic (in_channel_length ic) in
-     (*
+      *)
      print_string "> ";
      let s = read_line () in
-      *)
      let e = last p in
      let l = List.map (Fun.const "") p in
      let p = List.combine l p in

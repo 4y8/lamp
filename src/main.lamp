@@ -18,6 +18,7 @@ not f = f False True;
 data Pair = (,) x y;
 fst x   = x const;
 snd x   = x (\_ s -> s);
+uncurry f x = x f;
 
 data Maybe = Nothing | Just a;
 get e = e undefined id;
@@ -133,6 +134,8 @@ blank p = many nul
        *> p
       <*  many nul;
 
+word l = l (pure []) (\h t -> (:) <$> char h <*> word t);
+
 operators = ":=|+-,.&<*>$@#!";
 
 op = char ':' <|>
@@ -160,9 +163,13 @@ opp = \inp ->
 
 parentP = char '(' *> blank expr <* char ')';
 
-reserved_names = ["data"; "where"];
+reserved_names = ["data"; "where"; "case"; "of"];
 name_ide = (:) <$> ide <*> many (ide <|> digit);
-name = \inp -> name_ide inp Nothing  (\x -> elems reserved_names (fst x) Nothing (Just x));
+name = \inp ->
+  name_ide inp
+    Nothing
+    (\x -> elems reserved_names (fst x) Nothing (Just x))
+  ;
 
 lambdaP = (char '\'
        *> ((flip wrap_lam . reverse)
@@ -200,6 +207,36 @@ listP = lst
 numberP = ((\x -> Com ['#'; x]) . int_of_string)
       <$> many1 digit;
 
+wrap_app_lam b e =
+  b
+    (const e)
+    (const e)
+    (\l r -> r
+               (const e)
+	       (\v -> wrap_app_lam l (Lam v e))
+	       (\_ _ -> e)
+	       (\_ _ -> e))
+    (\_ _ -> e);
+
+wrap_appl e l =
+  l
+    e
+    (\h t -> wrap_appl (App e h) t)
+  ;
+
+arr = wrap_app_lam
+  <$> blank expr
+  <*  word "->"
+  <*> blank expr;
+
+caseP = wrap_appl
+    <$  word "case"
+    <*> blank expr
+    <*  word "of"
+    <*  blank (char '{')
+    <*> sepBy1 (blank (char ';')) arr
+    <*  blank (char '}');
+
 varP = (\v -> is_comb v combinators (Com v) (Var v))
    <$> (name
    <|> (char '(' *> blank opp <* char ')'));
@@ -210,7 +247,8 @@ atomP = parentP
     <|> (lambdaP
     <|> (stringP
     <|> (listP
-    <|> (numberP))))));
+    <|> (numberP
+    <|> (caseP)))))));
 
 appP = chainl1 (blank (pure App)) atomP;
 
@@ -273,7 +311,7 @@ decls_of_patterns l n i =
 
 data_decl =
       (\x -> decls_of_patterns x (length x) 1)
-  <$  char 'd' <* char 'a' <* char 't' <* char 'a'
+  <$  word "data"
   <*  blank name
   <*  blank (char '=')
   <*> sepBy1 (blank (char '|')) expr
@@ -368,7 +406,7 @@ babs e =
 subst e l = e
 	       Com
 	       (\v ->
-		  (Com ['@'; 32 + find_list v l]))
+		  (Com ['@'; find_list v l]))
 	       (\p q -> subst p l @ subst q l)
 	       (\v b -> Lam v (subst b l));
 
