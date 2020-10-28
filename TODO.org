@@ -5,6 +5,8 @@
 * TODO Where clauses
 * TODO Pattern matching
 ** TODO ADTs
+*** DONE Simple ADTs
+*** TODO Parametrized data types
 ** TODO Simple patterns
 ** TODO Nested patterns
 ** TODO Guards

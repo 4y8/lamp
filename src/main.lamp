@@ -4,8 +4,7 @@ const = K;
 flip = C;
 (.) = B;
 
-True  = \x _ -> x;
-False = \_ y -> y;
+data Bool = True | False;
 
 (||) f g x y = f x (g x y);
 (&&) f g x y = f (g x y) y;
@@ -20,8 +19,7 @@ not f = f False True;
 fst x   = x const;
 snd x   = x (\_ s -> s);
 
-Nothing = K;
-Just x  = \_ g -> g x;
+data Maybe = Nothing | Just a;
 get e = e undefined id;
 
 Nil = K;
@@ -66,9 +64,14 @@ find_list a l =
 	0
 	(find_list a t + 1));
 
-length = foldr (\_ -> (+) 1) 0
+length = foldr (\_ -> (+) 1) 0;
 
 int_of_string = foldl (\a b -> a * 10 + b - '0') 0;
+
+elems l e =
+  l
+    False
+    (\h t -> cmp_list h e True (elems t e));
 
 -- Parser ----------------------------------------------------------------------
 
@@ -151,7 +154,13 @@ op = char ':' <|>
     (char '@' <|>
     (char '#' <|>
     (char '!')))))))))))))); -- choice (map char operators);
-opp = many op;
+
+reserved_ops = ["->"; "|"];
+opp = \inp ->
+  (many op) inp
+    Nothing
+    (\x -> elems reserved_ops (fst x) Nothing (Just x))
+  ;
 
 parentP = char '(' *> blank expr <* char ')';
 
@@ -235,8 +244,8 @@ make_olist n i =
   (n == 0)
     []
     ((n == i)
-      ("_" : make_olist n (i + 1))
-      (""  : make_olist n (i + 1)))
+      ("_" : make_olist (n - 1) i)
+      (""  : make_olist (n - 1) i))
   ;
 
 wrap_app e l =
@@ -245,22 +254,32 @@ wrap_app e l =
     (\h t -> wrap_app (e @ Var h) t)
   ;
 
+app_name e =
+  e
+    undefined
+    id
+    (\l _ -> app_name l)
+    undefined
+  ;
+
 decls_of_patterns l n i =
   l
     []
     (\h t ->
+      app_name h,
       wrap_lam
         (wrap_app (Var "_") (make_clist (app_length h) 'a'))
-        (reverse (make_clist (app_length h) 'a' ++ make_olist n i)) :
-          decls_of_patterns t n (i + 1))
+        (make_olist n i ++ reverse (make_clist (app_length h) 'a')) :
+      decls_of_patterns t n (i + 1))
   ;
 
 data_decl =
-      decls_of_patterns
+      (\x -> decls_of_patterns x (length x) 1)
   <$  char 'd' <* char 'a' <* char 't' <* char 'a'
   <*  blank name
   <*  blank (char '=')
-  <*> sepBy1 (blank (char '|')) (blank expr);
+  <*> sepBy1 (blank (char '|')) expr
+  <*  char ';';
 
 equal = (flip wrap_lam . reverse)
     <$> many (blank name)
@@ -359,7 +378,7 @@ babs e =
 subst e l = e
 	       Com
 	       (\v ->
-		  (Com ('@' : ((32 + find_list v l) : Nil))))
+		  (Com ['@'; 32 + find_list v l]))
 	       (\p q -> subst p l @ subst q l)
 	       (\v b -> Lam v (subst b l));
 
