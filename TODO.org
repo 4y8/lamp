@@ -2,6 +2,7 @@
 * DONE List sugar
 * DONE Numbers
 * TODO Operator precedence
+** TODO Mifix operators (maybe)
 * TODO Where clauses
 * TODO Pattern matching
 ** TODO ADTs
@@ -10,6 +11,7 @@
 ** TODO Simple patterns
 ** TODO Nested patterns
 ** TODO Guards
+* TODO If then else expressions
 * TODO Type system
 ** TODO Hindley-Milner type inference
 ** TODO Type classes
@@ -21,4 +23,7 @@
 * TODO More optimizations
 ** TODO C vm
 ** DONE Oleg ski
+* TODO Test suite
+* TODO Examples
+* TODO Stdlib
 * TODO G-Machine backend

@@ -15,7 +15,7 @@ not f = f False True;
 (<>) x y = not (x == y);
 (>=) x y = not (x <= y);
 
-(,) x y = \f -> f x y;
+data Pair = (,) x y;
 fst x   = x const;
 snd x   = x (\_ s -> s);
 
@@ -109,11 +109,7 @@ letter = lower <|> upper;
 ide = letter <|> char ''' <|> char '_';
 digit = range '0' '9';
 
--- data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr
-Com c   = \a _ _ _ -> a c;
-Var v   = \_ b _ _ -> b v;
-App l r = \_ _ c _ -> c l r;
-Lam v b = \_ _ _ d -> d v b;
+data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr;
 
 sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
 
@@ -164,7 +160,9 @@ opp = \inp ->
 
 parentP = char '(' *> blank expr <* char ')';
 
-name = (:) <$> ide <*> many (ide <|> digit);
+reserved_names = ["data"; "where"];
+name_ide = (:) <$> ide <*> many (ide <|> digit);
+name = \inp -> name_ide inp Nothing  (\x -> elems reserved_names (fst x) Nothing (Just x));
 
 lambdaP = (char '\'
        *> ((flip wrap_lam . reverse)
@@ -297,12 +295,7 @@ top_level = fun_decl <|> data_decl;
 
 -- Bracket abstraction ---------------------------------------------------------
 
--- data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | (#) Deb Deb
-Zero    = \a _ _ _ _ -> a;
-Succ n  = \_ b _ _ _ -> b n;
-Pass e  = \_ _ c _ _ -> c e;
-Abs e   = \_ _ _ d _ -> d e;
-($#) l r = \_ _ _ _ e -> e l r;
+data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | ($#) Deb Deb;
 
 find l v def acc = l def (\h t -> (cmp_list h v) acc (find t v def (Succ acc)));
 
@@ -314,10 +307,7 @@ deb e env =
     (\v b -> Abs (deb b (v : env)))
   ;
 
-Closed e = \a _ _ _ -> a e;
-Need e   = \_ b _ _ -> b e;
-Weak e   = \_ _ c _ -> c e;
-Variable = \_ _ _ d -> d;
+data Repr = Closed Expr | Need Repr | Weak Repr | Variable;
 
 babsClosed d r =
   r
@@ -389,7 +379,7 @@ show e =
     id
     id
     (\l r -> '`' : show l ++ show r)
-    (\v b -> '\': (v ++ ('.' : show b)));
+    (\v b -> '\' : (v ++ ('.' : show b)));
 
 (@) = App;
 
