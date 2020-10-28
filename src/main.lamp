@@ -217,15 +217,62 @@ wrap_lam e l =
     (\h t ->
       wrap_lam (Lam h e) t);
 
+app_length e =
+  e
+    (const 0)
+    (const 0)
+    (\l _ -> 1 + app_length l)
+    (\_ _ -> 0)
+  ;
+
+make_clist n i =
+  (n == 0)
+    []
+    ([i] : make_clist (n - 1) (i + 1))
+  ;
+
+make_olist n i =
+  (n == 0)
+    []
+    ((n == i)
+      ("_" : make_olist n (i + 1))
+      (""  : make_olist n (i + 1)))
+  ;
+
+wrap_app e l =
+  l
+    e
+    (\h t -> wrap_app (e @ Var h) t)
+  ;
+
+decls_of_patterns l n i =
+  l
+    []
+    (\h t ->
+      wrap_lam
+        (wrap_app (Var "_") (make_clist (app_length h) 'a'))
+        (reverse (make_clist (app_length h) 'a' ++ make_olist n i)) :
+          decls_of_patterns t n (i + 1))
+  ;
+
+data_decl =
+      decls_of_patterns
+  <$  char 'd' <* char 'a' <* char 't' <* char 'a'
+  <*  blank name
+  <*  blank (char '=')
+  <*> sepBy1 (blank (char '|')) (blank expr);
+
 equal = (flip wrap_lam . reverse)
     <$> many (blank name)
     <*  blank (char '=')
     <*> expr;
 
-top_level = (\f s -> [f, s])
-	<$> (name <|> (char '(' *> blank opp <* char ')'))
-	<*> blank equal
-	<*  char ';';
+fun_decl = (\f s -> [f, s])
+       <$> (name <|> (char '(' *> blank opp <* char ')'))
+       <*> blank equal
+       <*  char ';';
+
+top_level = fun_decl <|> data_decl;
 
 --------------------------------------------------------------------------------
 
