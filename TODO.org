@@ -8,9 +8,10 @@
 ** TODO ADTs
 *** DONE Simple ADTs
 *** TODO Parametrized data types
-** TODO Simple patterns
+** DONE Simple patterns
 ** TODO Nested patterns
 ** TODO Guards
+** TODO Pattern matching in equations
 * TODO If then else expressions
 * TODO Type system
 ** TODO Hindley-Milner type inference

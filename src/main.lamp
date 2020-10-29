@@ -15,9 +15,9 @@ not f = f False True;
 (<>) x y = not (x == y);
 (>=) x y = not (x <= y);
 
-data Pair = (,) x y;
-fst x   = x const;
-snd x   = x (\_ s -> s);
+data Pair   = (,) x y;
+fst x       = case x of { f, _ -> f };
+snd x       = case x of { _, s -> s };
 uncurry f x = x f;
 
 data Maybe = Nothing | Just a;
@@ -26,22 +26,40 @@ get e = e undefined id;
 Nil = K;
 
 (++) l l' =
-  l
-    l'
-    (\h t -> h : (t ++ l'));
+  case l of
+  { [] -> l'
+  ; h : t -> h : (t ++ l') };
 
 reverse l =
-  l
-    Nil
-    (\h t -> (reverse t) ++ (h : Nil));
+  case l of
+  { [] -> []
+  ; h : t -> reverse t ++ [h] };
 
-map f l = l Nil (\h t -> f h : map f t);
+map f l =
+  case l of
+  { [] -> []
+  ; h : t -> f h : map f t };
 
-foldr f acc l = l acc (\h t -> f h (foldr f acc t));
-foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
+foldr f acc l =
+  case l of
+  { [] -> acc
+  ; h : t -> f h (foldr f acc t) };
 
-head l = l undefined (\h _ -> h);
-tail l = l undefined (\_ t -> t);
+foldl f acc l =
+  case l of
+  { [] -> acc
+  ; h : t -> foldl f (f acc h) t };
+
+head l =
+  case l of
+  { [] -> undefined
+  ; h : _ -> h };
+
+tail l =
+  case l of
+  { [] -> undefined
+  ; _ : t -> t };
+
 cmp_list l l' =
   l
     (l'
@@ -280,7 +298,7 @@ make_olist n i =
   (n == 0)
     []
     ((n == i)
-      ("_" : make_olist (n - 1) i)
+      ("#@" : make_olist (n - 1) i)
       (""  : make_olist (n - 1) i))
   ;
 
@@ -304,7 +322,7 @@ decls_of_patterns l n i =
     (\h t ->
       app_name h,
       wrap_lam
-        (wrap_app (Var "_") (make_clist (app_length h) 'a'))
+        (wrap_app (Var "#@") (make_clist (app_length h) 'a'))
         (make_olist n i ++ reverse (make_clist (app_length h) 'a')) :
       decls_of_patterns t n (i + 1))
   ;
