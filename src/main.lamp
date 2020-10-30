@@ -65,27 +65,28 @@ tail l =
   ; _ : t -> t };
 
 cmp_list l l' =
-  l
-    (l'
-      True
-      (\_ _ -> False))
-    (\h t ->
-      l'
-	False
-	(\h' t' ->
-	  (h == h')
-	    (cmp_list t t')
-	    False));
+  case l of
+  { [] -> case l' of
+    { [] -> True
+    ; _ : _ -> False }
+  ; h : t -> case l' of
+    { [] -> False
+    ; h' : t' -> (h == h') (cmp_list t t') False }};
 
-last l = l undefined (\h t -> t h (\_ _ -> last t));
+last l =
+  case l of
+  { [] -> undefined
+  ; h : t -> case t of
+    { [] -> h
+    ; _ : _ -> last t }};
 
 find_list a l =
-  l
-    undefined
-    (\h t ->
-      (cmp_list (fst h) a)
-	0
-	(find_list a t + 1));
+  case l of
+  { [] -> undefined
+  ; h : t ->
+    (cmp_list (fst h) a)
+      0
+      (find_list a t + 1) };
 
 length = foldr (\_ -> (+) 1) 0;
 
@@ -140,7 +141,10 @@ digit = range '0' '9';
 
 data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr;
 
-sat f inp = inp Nothing (\h t -> f h (pure h t) Nothing);
+sat f inp =
+  case inp of
+  { [] -> Nothing
+  ; h : t -> f h (pure h t) Nothing };
 
 char c = sat ((==) c);
 any = sat (\_ -> const);
@@ -148,46 +152,7 @@ any = sat (\_ -> const);
 space = char ' ';
 newline = char '
 ';
-tab = char '	';
-
-nul = space
-  <|> (tab
-  <|> (newline
-  <|> (char '-'
-   <*  (char '-'
-    *> many (sat (\x -> x <> '
-'))))));
-
-blank p = many nul
-       *> p
-      <*  many nul;
-
-word l = l (pure []) (\h t -> (:) <$> char h <*> word t);
-
-operators = ":=|+-,.&<*>$@#!";
-
-op = char ':' <|>
-    (char '=' <|>
-    (char '|' <|>
-    (char '+' <|>
-    (char '-' <|>
-    (char ',' <|>
-    (char '.' <|>
-    (char '&' <|>
-    (char '<' <|>
-    (char '*' <|>
-    (char '>' <|>
-    (char '$' <|>
-    (char '@' <|>
-    (char '#' <|>
-    (char '!')))))))))))))); -- choice (map char operators);
-
-reserved_ops = ["->"; "|"];
-opp = \inp ->
-  (many op) inp
-    Nothing
-    (\x -> elems reserved_ops (fst x) Nothing (Just x))
-  ;
+tab = char
 
 parentP = char '(' *> blank expr <* char ')';
 
@@ -247,10 +212,9 @@ wrap_app_lam b e =
   ; Lam _ _ -> e };
 
 wrap_appl e l =
-  l
-    e
-    (\h t -> wrap_appl (App e h) t)
-  ;
+  case l of
+  { [] -> e
+  ; h : t -> wrap_appl (App e h) t };
 
 arr = wrap_app_lam
   <$> blank expr
@@ -285,18 +249,16 @@ expr = chainl1 ((\x y z ->
 		<$> blank opp) appP;
 
 wrap_lam e l =
-  l
-    e
-    (\h t ->
-      wrap_lam (Lam h e) t);
+  case l of
+  { [] -> e
+  ; h : t -> wrap_lam (Lam h e) t };
 
 app_length e =
-  e
-    (const 0)
-    (const 0)
-    (\l _ -> 1 + app_length l)
-    (\_ _ -> 0)
-  ;
+  case e of
+  { Com _ -> 0
+  ; Var _ -> 0
+  ; App l _ -> 1 + app_length l
+  ; Lam _ _ -> 0 };
 
 make_clist n i =
   (n == 0)
@@ -318,23 +280,21 @@ wrap_app e l =
   ; h : t -> wrap_app (e @ Var h) t };
 
 app_name e =
-  e
-    undefined
-    id
-    (\l _ -> app_name l)
-    undefined
-  ;
+  case e of
+  { Com _ -> undefined
+  ; Var v -> v
+  ; App l _ -> app_name l
+  ; Lam _ _ -> undefined };
 
 decls_of_patterns l n i =
-  l
-    []
-    (\h t ->
-      app_name h,
-      wrap_lam
-        (wrap_app (Var "#@") (make_clist (app_length h) 'a'))
-        (make_olist n i ++ reverse (make_clist (app_length h) 'a')) :
-      decls_of_patterns t n (i + 1))
-  ;
+  case l of
+  { [] -> []
+  ; h : t ->
+    app_name h,
+    wrap_lam
+      (wrap_app (Var "#@") (make_clist (app_length h) 'a'))
+      (make_olist n i ++ reverse (make_clist (app_length h) 'a')) :
+    decls_of_patterns t n (i + 1) };
 
 data_decl =
       (\x -> decls_of_patterns x (length x) 1)
@@ -362,15 +322,17 @@ top_level = fun_decl <|> data_decl;
 
 data Deb = Zero | Succ Deb | Pass Expr | Abs Deb | ($#) Deb Deb;
 
-find l v def acc = l def (\h t -> (cmp_list h v) acc (find t v def (Succ acc)));
+find l v def acc =
+  case l of
+  { [] -> def
+  ; h : t -> (cmp_list h v) acc (find t v def (Succ acc)) };
 
 deb e env =
-  e
-    (const (Pass e))
-    (\v -> find env v (Pass e) Zero)
-    (\l r -> deb l env $# deb r env)
-    (\v b -> Abs (deb b (v : env)))
-  ;
+  case e of
+  { Com _ -> const (Pass e)
+  ; Var v -> find env v (Pass e) Zero
+  ; App l r -> deb l env $# deb r env
+  ; Lam v b -> Abs (deb b (v : env)) };
 
 data Repr = Closed Expr | Need Repr | Weak Repr | Variable;
 
