@@ -386,7 +386,7 @@ babsNeed e r =
   { Closed d -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e)
   ; Need e' -> Need (Closed (Com "S") $$ e $$ e')
   ; Weak e' -> Need (Closed (Com "C") $$ e $$ e')
-  ; Variable (Closed (Com "S") $$ e $$ Closed (Com "I")) };
+  ; Variable -> (Closed (Com "S") $$ e $$ Closed (Com "I")) };
 
 babsWeak e r =
   case r of
@@ -412,16 +412,17 @@ babsa l r =
 ($$) = babsa;
 
 babs e =
-  e
-    Variable
-    (Weak . babs)
-    Closed
-    (\e -> (babs e)
-      (\d -> Closed (Com "K" @ d))
-      id
-      (babsa (Closed (Com "K")))
-      (Closed (Com "I")))
-    (\l r -> (babs l) $$ (babs r));
+  case e of
+  { Zero -> Variable
+  ; Succ n -> Weak (babs n)
+  ; Pass e -> Closed e
+  ; Lam e ->
+    case babs e of
+    { Closed d -> Closed (Com "K" @ d)
+    ; Need e -> e
+    ; Weak e -> Closed (Com "K") $$ e
+    ; Variable -> Closed (Com "I") }
+  ; l $# r -> babs l $$ babs r };
 
 --------------------------------------------------------------------------------
 
@@ -432,7 +433,10 @@ subst e l =
   ; App p q -> subst p l @ subst q l
   ; Lam v b -> Lam v (subst b l) };
 
-smap f l = l Nil (\h t -> (fst h, f (snd h)) : smap f t);
+smap f l =
+  case l of
+  { [] -> []
+  ; h : t -> (fst h, f (snd h)) : smap f t };
 
 show e =
   case e of
