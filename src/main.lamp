@@ -66,17 +66,20 @@ tail l =
 
 cmp_list l l' =
   case l of
-  { [] -> case l' of
+  { [] ->
+    case l' of
     { [] -> True
     ; _ : _ -> False }
-  ; h : t -> case l' of
+  ; h : t ->
+    case l' of
     { [] -> False
     ; h' : t' -> (h == h') (cmp_list t t') False }};
 
 last l =
   case l of
   { [] -> undefined
-  ; h : t -> case t of
+  ; h : t ->
+    case t of
     { [] -> h
     ; _ : _ -> last t }};
 
@@ -271,7 +274,7 @@ make_olist n i =
     []
     ((n == i)
       ("#@" : make_olist (n - 1) i)
-      (""  : make_olist (n - 1) i))
+      (""   : make_olist (n - 1) i))
   ;
 
 wrap_app e l =
@@ -329,7 +332,7 @@ find l v def acc =
 
 deb e env =
   case e of
-  { Com _ -> const (Pass e)
+  { Com _ -> Pass e
   ; Var v -> find env v (Pass e) Zero
   ; App l r -> deb l env $# deb r env
   ; Lam v b -> Abs (deb b (v : env)) };
@@ -348,7 +351,7 @@ babsNeed e r =
   { Closed d -> Need ((Closed (Com "C" @ Com "C" @ d)) $$ e)
   ; Need e' -> Need (Closed (Com "S") $$ e $$ e')
   ; Weak e' -> Need (Closed (Com "C") $$ e $$ e')
-  ; Variable -> (Closed (Com "S") $$ e $$ Closed (Com "I")) };
+  ; Variable -> Need (Closed (Com "S") $$ e $$ Closed (Com "I")) };
 
 babsWeak e r =
   case r of
