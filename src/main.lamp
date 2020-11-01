@@ -27,8 +27,6 @@ get e = case e of
   { Nothing -> undefined
   ; Just x -> x };
 
-Nil = K;
-
 (++) l l' =
   case l of
   { [] -> l'
@@ -102,7 +100,10 @@ elems l e =
 
 combinators = "SICKBEL+-:*";
 
-is_comb v l = l False (\h t -> (cmp_list v [h]) True (is_comb v t));
+is_comb v l =
+  case l of
+  { [] -> False
+  ; h : t -> (cmp_list v [h]) True (is_comb v t) };
 
 pure x = \inp -> Just (x, inp);
 fail = const Nothing;
@@ -126,7 +127,10 @@ bind f m = case m of
 opt def x = x <|> pure def;
 many p = opt [] ((:) <$> p <*>| (\_ -> many p));
 many1 p = (:) <$> p <*> many p;
-appall x l = l x (\h t -> appall (h x) t);
+appall x l =
+  case l of
+  { [] -> x
+  ; h : t -> appall (h x) t };
 chainl1 op p = appall <$> p <*> many (flip <$> op <*> p);
 choice = foldr (<|>) fail;
 
@@ -148,7 +152,7 @@ sat f inp =
   ; h : t -> f h (pure h t) Nothing };
 
 char c = sat ((==) c);
-any = sat (\_ -> const);
+any = sat (const const);
 
 space = char ' ';
 newline = char '
@@ -167,7 +171,10 @@ blank p = many nul
        *> p
       <*  many nul;
 
-word l = l (pure []) (\h t -> (:) <$> char h <*> word t);
+word l =
+  case l of
+  { [] -> pure []
+  ; h : t -> (:) <$> char h <*> word t };
 
 operators = ":=|+-,.&<*>$@#!";
 
@@ -189,20 +196,18 @@ op = char ':' <|>
 
 reserved_ops = ["->"; "|"];
 opp = \inp ->
-  (many op) inp
-    Nothing
-    (\x -> elems reserved_ops (fst x) Nothing (Just x))
-  ;
+  case (many op) inp of
+  { Nothing -> Nothing
+  ; Just x -> elems reserved_ops (fst x) Nothing (Just x) };
 
 parentP = char '(' *> blank expr <* char ')';
 
 reserved_names = ["data"; "where"; "case"; "of"];
 name_ide = (:) <$> ide <*> many (ide <|> digit);
 name = \inp ->
-  name_ide inp
-    Nothing
-    (\x -> elems reserved_names (fst x) Nothing (Just x))
-  ;
+  case name_ide inp of
+  { Nothing -> Nothing
+  ; Just x -> elems reserved_names (fst x) Nothing (Just x) };
 
 lambdaP = (char '\'
        *> ((flip wrap_lam . reverse)
@@ -218,9 +223,10 @@ charP = char '''
      *> ((chr <$> any)
     <*  char ''');
 
-str l = l
-	  (Com "K")
-	  (\h t -> Com ":" @ chr h @ str t);
+str l =
+  case l of
+  { [] -> Com "K"
+  ; h : t -> Com ":" @ chr h @ str t };
 
 dquote = '"'; --"
 
@@ -228,9 +234,10 @@ stringP = char dquote
        *> ((str <$> many (sat (\x -> x <> dquote)))
       <*  char dquote);
 
-lst l = l
-	 (Com "K")
-	 (\h t -> Com ":" @ h @ lst t);
+lst l =
+  case l of
+  { [] -> Com "K"
+  ; h : t -> Com ":" @ h @ lst t };
 
 listP = lst
     <$> (char '['
