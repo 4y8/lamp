@@ -70,16 +70,14 @@ cmp_list l l' =
     case l' of
     { [] -> True
     ; _ : _ -> False }
-  ; h : t ->
-    case l' of
+  ; h : t -> case l' of
     { [] -> False
     ; h' : t' -> (h == h') (cmp_list t t') False }};
 
 last l =
   case l of
   { [] -> undefined
-  ; h : t ->
-    case t of
+  ; h : t -> case t of
     { [] -> h
     ; _ : _ -> last t }};
 
@@ -155,7 +153,46 @@ any = sat (\_ -> const);
 space = char ' ';
 newline = char '
 ';
-tab = char
+tab = char '	';
+
+nul = space
+  <|> (tab
+  <|> (newline
+  <|> (char '-'
+   <*  (char '-'
+    *> many (sat (\x -> x <> '
+'))))));
+
+blank p = many nul
+       *> p
+      <*  many nul;
+
+word l = l (pure []) (\h t -> (:) <$> char h <*> word t);
+
+operators = ":=|+-,.&<*>$@#!";
+
+op = char ':' <|>
+    (char '=' <|>
+    (char '|' <|>
+    (char '+' <|>
+    (char '-' <|>
+    (char ',' <|>
+    (char '.' <|>
+    (char '&' <|>
+    (char '<' <|>
+    (char '*' <|>
+    (char '>' <|>
+    (char '$' <|>
+    (char '@' <|>
+    (char '#' <|>
+    (char '!')))))))))))))); -- choice (map char operators);
+
+reserved_ops = ["->"; "|"];
+opp = \inp ->
+  (many op) inp
+    Nothing
+    (\x -> elems reserved_ops (fst x) Nothing (Just x))
+  ;
 
 parentP = char '(' *> blank expr <* char ')';
 
