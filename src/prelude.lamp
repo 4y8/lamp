@@ -1,51 +1,87 @@
+-- Prelude ---------------------------------------------------------------------
 undefined = I;
-
--- Combinators
 id = I;
 const = K;
 flip = C;
 (.) = B;
 
--- Types
--- Booleans
-True  = \x _ -> x;
-False = \_ y -> y;
+data Bool = True | False;
 
 (||) f g x y = f x (g x y);
 (&&) f g x y = f (g x y) y;
+not f = case f of
+  { True -> False
+  ; False -> True };
 
 (==) = E;
 (<=) = L;
+(<>) x y = not (x == y);
+(>=) x y = not (x <= y);
 
--- Pairs
-(,) x y     = \f -> f x y;
-fst x = x const;
-snd x = x (\_ s -> s);
+data Pair   = (,) x y;
+fst x       = case x of { f, _ -> f };
+snd x       = case x of { _, s -> s };
+uncurry f x = x f;
 
--- Maybe
-Nothing = K;
-Just x  = \_ g -> g x;
-get e = e undefined id;
-
--- Lists
-Nil = K;
+data Maybe = Nothing | Just a;
+get e = case e of
+  { Nothing -> undefined
+  ; Just x -> x };
 
 (++) l l' =
-  l
-    l'
-    (\h t -> h : (t ++ l'));
+  case l of
+  { [] -> l'
+  ; h : t -> h : (t ++ l') };
 
 reverse l =
-  l
-    Nil
-    (\h t -> (reverse t) ++ (h : Nil));
+  case l of
+  { [] -> []
+  ; h : t -> reverse t ++ [h] };
 
-map f l = l Nil (\h t -> f h : map f t);
+map f l =
+  case l of
+  { [] -> []
+  ; h : t -> f h : map f t };
 
-foldr f acc l = l acc (\h t -> f h (foldr f acc t));
-foldl f acc l = l acc (\h t -> foldl f (f acc h) t);
+foldr f acc l =
+  case l of
+  { [] -> acc
+  ; h : t -> f h (foldr f acc t) };
 
-head l = l undefined (\h _ -> h);
-tail l = l undefined (\_ t -> t);
+foldl f acc l =
+  case l of
+  { [] -> acc
+  ; h : t -> foldl f (f acc h) t };
 
-last l = l undefined (\h t -> t h (\_ _ -> last t));
+head l =
+  case l of
+  { [] -> undefined
+  ; h : _ -> h };
+
+tail l =
+  case l of
+  { [] -> undefined
+  ; _ : t -> t };
+
+cmp_list l l' =
+  case l of
+  { [] ->
+    case l' of
+    { [] -> True
+    ; _ : _ -> False }
+  ; h : t -> case l' of
+    { [] -> False
+    ; h' : t' -> (h == h') (cmp_list t t') False }};
+
+last l =
+  case l of
+  { [] -> undefined
+  ; h : t -> case t of
+    { [] -> h
+    ; _ : _ -> last t }};
+
+length = foldr (\_ -> (+) 1) 0;
+
+int_of_string = foldl (\a b -> a * 10 + b - '0') 0;
+
+-- EOF -------------------------------------------------------------------------
