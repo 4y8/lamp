@@ -148,6 +148,7 @@ ide = letter <|> char ''' <|> char '_';
 digit = range '0' '9';
 
 data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr;
+(@) = App;
 
 sat f inp =
   case inp of
@@ -436,7 +437,6 @@ babs e =
     ; Variable -> Closed (Com "I") }
   ; l $# r -> babs l $$ babs r };
 
---------------------------------------------------------------------------------
 
 subst e l =
   case e of
@@ -457,7 +457,35 @@ show e =
   ; App l r -> '`' : show l ++ show r
   ; Lam v b -> '\' : (v ++ ('.' : show b)) };
 
-(@) = App;
+--------------------------------------------------------------------------------
+
+-- Type system -----------------------------------------------------------------
+
+data Type = TLit [Char] | TFun Type Type | TVar Int;
+
+ftv t =
+  case t of
+  { TLit _ -> []
+  ; TFun t t' -> ftv t ++ ftv t'
+  ; TVar v -> [v] };
+
+mem l e =
+  case l of
+  { [] -> False
+  ; h : t -> (h == e) True (mem t e) };
+
+bind v t =
+  case t of
+  { TLit _ -> []
+  ; TFun _ _ -> []
+  ; TVar v' ->
+    (v == v')
+      []
+      ((mem (ftv t) v) -- Occurs check
+        undefined
+	[v, t]) };
+
+--------------------------------------------------------------------------------
 
 main = (foldr (\l l' -> l ++ (';' : l')) [] .
 	map (show . snd) .
