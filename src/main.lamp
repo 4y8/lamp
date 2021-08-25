@@ -7,7 +7,7 @@ flip f g x = f x g ;
 
 data Bool = True | False;
 
-(||) x y = case x of { True -> True; False -> y};
+(||) x y = case x of { True -> True; False -> y };
 (&&) x y = case x of { True -> y; False -> False };
 not f = case f of
   { True -> False
@@ -90,12 +90,15 @@ find_list a l =
 
 length = foldr (\_ -> (+) 1) 0;
 
-int_of_string = foldl (\a b -> a * 10 + b - '0') 0;
-
 elems l e =
   case l of
   { [] -> False
   ; h : t -> cmp_list h e True (elems t e) };
+
+lookup l key =
+  case l of
+  { [] -> Nothing
+  ; x : xs -> (key == fst x) (Just (snd x)) (lookup xs key)};
 
 --------------------------------------------------------------------------------
 
@@ -144,7 +147,7 @@ range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
 upper = range 'A' 'Z';
 letter = lower <|> upper;
-ide = letter <|> char ''' <|> char '_';
+ide = letter <|> (pure '?' <* char ''') <|> char '_';
 digit = range '0' '9';
 
 data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr;
@@ -180,29 +183,29 @@ word l =
   { [] -> pure []
   ; h : t -> (:) <$> char h <*> word t };
 
-operators = ":=|+-,.&<*>$@#!";
-
 op = char ':' <|>
     (char '=' <|>
-    (char '|' <|>
+    ((pure '~' <* char '|') <|>
     (char '+' <|>
     (char '-' <|>
-    (char ',' <|>
-    (char '.' <|>
+    ((pure '?' <* char ',') <|>
+    ((pure '^' <* char '.') <|>
     (char '&' <|>
     (char '<' <|>
     (char '*' <|>
     (char '>' <|>
     (char '$' <|>
-    (char '@' <|>
-    (char '#' <|>
-    (char '!')))))))))))))); -- choice (map char operators);
+     char '@'))))))))))); -- choice (map char operators);
 
 reserved_ops = ["->"; "|"];
 opp = \inp ->
   case (many op) inp of
   { Nothing -> Nothing
-  ; Just x -> elems reserved_ops (fst x) Nothing (Just x) };
+  ; Just x ->
+    case elems reserved_ops (fst x) of
+    { True -> Nothing
+    ; False -> Just x}
+  };
 
 parentP = char '(' *> blank expr <* char ')';
 
@@ -376,7 +379,7 @@ to_scheme e =
   { Com v -> v
   ; Var v -> v
   ; App l r -> "(" ++ to_scheme l ++ " " ++ to_scheme r ++ ")"
-  ; Lam v b -> "(lambda (" ++ v ++ ")" ++ to_scheme b ++ ")" };
+  ; Lam v b -> "(lambda (" ++ v ++ ") " ++ to_scheme b ++ ")" };
 
 to_scheme_decl d = "(define " ++ fst d ++ " " ++ to_scheme (snd d) ++ ")";
 
@@ -386,3 +389,5 @@ main = (foldr (++) [] .
 	fst .
 	get .
 	many (blank top_level));
+
+-- EOF -------------------------------------------------------------------------
