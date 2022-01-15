@@ -118,7 +118,7 @@ bind f m = case m of
   ; Just x -> x f };
 
 (<*>) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q t)) (p inp);
-(<*>|) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q I t)) (p inp);
+(<*>|) p q = \inp -> bind (\a t -> bind (\b u -> pure (a b) u) (q id t)) (p inp);
 (<|>) p q = \inp ->
   case p inp of
   { Nothing -> q inp
@@ -143,6 +143,12 @@ choice = foldr (<|>) fail;
 sepBy1 sep p = (:) <$> p <*> many (sep *> p);
 sepBy sep p  = opt [] (sepBy1 sep p);
 
+sat f inp =
+  case inp of
+  { [] -> Nothing
+  ; h : t -> f h (pure h t) Nothing };
+
+char c = sat ((==) c);
 range l r = sat (\x -> (l <= x) && (x <= r));
 lower = range 'a' 'z';
 upper = range 'A' 'Z';
@@ -153,12 +159,6 @@ digit = range '0' '9';
 data Expr = Com [Char] | Var [Char] | App Expr Expr | Lam [Char] Expr;
 (@) = App;
 
-sat f inp =
-  case inp of
-  { [] -> Nothing
-  ; h : t -> f h (pure h t) Nothing };
-
-char c = sat ((==) c);
 any = sat (const const);
 
 space = char ' ';
@@ -197,7 +197,7 @@ op = char ':' <|>
     (char '$' <|>
      char '@'))))))))))); -- choice (map char operators);
 
-reserved_ops = ["->"; "|"];
+reserved_ops = ["->"; "~"];
 opp = \inp ->
   case (many op) inp of
   { Nothing -> Nothing
@@ -207,7 +207,6 @@ opp = \inp ->
     ; False -> Just x}
   };
 
-parentP = char '(' *> blank expr <* char ')';
 
 reserved_names = ["data"; "where"; "case"; "of"];
 name_ide = (:) <$> ide <*> many (ide <|> digit);
@@ -224,7 +223,7 @@ lambdaP = (char '\'
        *> (many nul
        *> expr)))));
 
-chr c = Com ['"'; c; '"'];
+chr c = Com ['"'] ++ ((== c '"') ['\'; '"'] [c]) ++ ['"'];
 
 charP = char '''
      *> ((chr <$> any)
@@ -287,6 +286,7 @@ varP = (\v -> is_comb v combinators (Com v) (Var v))
    <$> (name
    <|> (char '(' *> blank opp <* char ')'));
 
+parentP = char '(' *> blank expr <* char ')';
 atomP = parentP
     <|> (charP
     <|> (varP
@@ -381,7 +381,14 @@ to_scheme e =
   ; App l r -> "(" ++ to_scheme l ++ " " ++ to_scheme r ++ ")"
   ; Lam v b -> "(lambda (" ++ v ++ ") " ++ to_scheme b ++ ")" };
 
-to_scheme_decl d = "(define " ++ fst d ++ " " ++ to_scheme (snd d) ++ ")";
+to_scheme_decl d =
+  case snd d of
+  { Com _ -> "(define " ++ fst d ++ " " ++ to_scheme (snd d) ++ ")"
+  ; Var _ -> "(define " ++ fst d ++ " " ++ to_scheme (snd d) ++ ")"
+  ; App _ _ -> "(define " ++ fst d ++ " " ++ to_scheme (snd d) ++ ")"
+  ; Lam v b -> "(define (" ++ fst d ++ " " ++ v ++ ") " ++ to_scheme b ++ ")"};
+
+--------------------------------------------------------------------------------
 
 main = (foldr (++) [] .
 	map to_scheme_decl .
