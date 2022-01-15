@@ -90,10 +90,17 @@ find_list a l =
 
 length = foldr (\_ -> (+) 1) 0;
 
-elems l e =
+elem_list l e =
   case l of
   { [] -> False
-  ; h : t -> cmp_list h e True (elems t e) };
+  ; h : t -> cmp_list h e True (elem_list t e) };
+
+elem l e =
+  case l of
+  { [] -> False
+  ; h : t -> (h == e) True (elem t e) };
+
+
 
 lookup l key =
   case l of
@@ -202,7 +209,7 @@ opp = \inp ->
   case (many op) inp of
   { Nothing -> Nothing
   ; Just x ->
-    case elems reserved_ops (fst x) of
+    case elem_list reserved_ops (fst x) of
     { True -> Nothing
     ; False -> Just x}
   };
@@ -213,17 +220,9 @@ name_ide = (:) <$> ide <*> many (ide <|> digit);
 name = \inp ->
   case name_ide inp of
   { Nothing -> Nothing
-  ; Just x -> elems reserved_names (fst x) Nothing (Just x) };
+  ; Just x -> elem_list reserved_names (fst x) Nothing (Just x) };
 
-lambdaP = (char '\'
-       *> ((flip wrap_lam . reverse)
-      <$> many (blank name)
-      <*> (char '-'
-       *> (char '>'
-       *> (many nul
-       *> expr)))));
-
-chr c = Com ['"'] ++ ((== c '"') ['\'; '"'] [c]) ++ ['"'];
+chr c = Com (['"'] ++ ((elem ['"'; '\'] c) ['\'; c] [c]) ++ ['"']);
 
 charP = char '''
      *> ((chr <$> any)
@@ -234,7 +233,7 @@ str l =
   { [] -> Com "K"
   ; h : t -> Com ":" @ chr h @ str t };
 
-dquote = '"'; --"
+dquote = '"';
 
 stringP = char dquote
        *> ((str <$> many (sat (\x -> x <> dquote)))
@@ -245,11 +244,6 @@ lst l =
   { [] -> Com "K"
   ; h : t -> Com ":" @ h @ lst t };
 
-listP = lst
-    <$> (char '['
-     *> (sepBy (blank (char ';')) expr
-    <*  char ']'));
-
 numberP = Com
       <$> many1 digit;
 
@@ -259,9 +253,9 @@ wrap_app_lam b e =
   ; Var _ -> e
   ; App l r -> case r of
                { Com _ -> e
-	       ; Var v -> wrap_app_lam l (Lam v e)
-	       ; App _ _ -> e
-	       ; Lam _ _ -> e }
+               ; Var v -> wrap_app_lam l (Lam v e)
+               ; App _ _ -> e
+               ; Lam _ _ -> e }
   ; Lam _ _ -> e };
 
 wrap_appl e l =
@@ -269,38 +263,51 @@ wrap_appl e l =
   { [] -> e
   ; h : t -> wrap_appl (App e h) t };
 
-arr = wrap_app_lam
+lambdaP x = (char '\'
+       *> ((flip wrap_lam . reverse)
+      <$> many (blank name)
+      <*> (char '-'
+       *> (char '>'
+       *> (many nul
+       *> expr))))) x;
+
+listP x = (lst
+    <$> (char '['
+     *> (sepBy (blank (char ';')) expr
+    <*  char ']'))) x;
+
+arr x = (wrap_app_lam
   <$> blank expr
   <*  word "->"
-  <*> blank expr;
+  <*> blank expr) x;
 
-caseP = wrap_appl
+caseP x = (wrap_appl
     <$  word "case"
     <*> blank expr
     <*  word "of"
     <*  blank (char '{')
     <*> sepBy1 (blank (char ';')) arr
-    <*  blank (char '}');
+    <*  blank (char '}')) x;
 
-varP = (\v -> is_comb v combinators (Com v) (Var v))
+varP x = ((\v -> is_comb v combinators (Com v) (Var v))
    <$> (name
-   <|> (char '(' *> blank opp <* char ')'));
+   <|> (char '(' *> blank opp <* char ')'))) x;
 
-parentP = char '(' *> blank expr <* char ')';
-atomP = parentP
+parentP x = (char '(' *> blank expr <* char ')') x;
+atomP x = (parentP
     <|> (charP
     <|> (varP
     <|> (lambdaP
     <|> (stringP
     <|> (listP
     <|> (numberP
-    <|> (caseP)))))));
+    <|> (caseP)))))))) x;
 
-appP = chainl1 (blank (pure App)) atomP;
+appP x = chainl1 (blank (pure App)) atomP x;
 
-expr = chainl1 ((\x y z ->
-		(is_comb x combinators (Com x) (Var x)) @ y @ z)
-		<$> blank opp) appP;
+expr x = chainl1 ((\x y z ->
+                (is_comb x combinators (Com x) (Var x)) @ y @ z)
+                <$> blank opp) appP x;
 
 wrap_lam e l =
   case l of
@@ -391,10 +398,10 @@ to_scheme_decl d =
 --------------------------------------------------------------------------------
 
 main = (foldr (++) [] .
-	map to_scheme_decl .
-	foldr (++) [] .
-	fst .
-	get .
-	many (blank top_level));
+        map to_scheme_decl .
+        foldr (++) [] .
+        fst .
+        get .
+        many (blank top_level));
 
 -- EOF -------------------------------------------------------------------------
